@@ -1,0 +1,62 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: crm-mongodb
+    ports:
+      - "27018:27017"
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: development
+    container_name: crm-server
+    ports:
+      - "5001:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=development
+      - DATABASE_URL=mongodb://mongodb:27017/crm?replicaSet=rs0
+      - JWT_SECRET=${JWT_SECRET:-crm-dev-jwt-secret-key-2024}
+      - CORS_ORIGIN=http://localhost:5173
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      target: development
+    container_name: crm-client
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5001/api
+      - DOCKER_RUNNING=true
+    depends_on:
+      - server
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+
+networks:
+  crm-network:
+    driver: bridge

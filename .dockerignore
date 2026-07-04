@@ -1,0 +1,13 @@
+node_modules
+*/node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+README.md
+docker-compose.yml
+docker-compose.override.yml
+.DS_Store
+coverage
+*.md
