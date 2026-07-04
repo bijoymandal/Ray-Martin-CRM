@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const prisma = require('../../lib/prisma');
 
 // Get all deals for the authenticated user
 exports.getAll = async (req, res, next) => {

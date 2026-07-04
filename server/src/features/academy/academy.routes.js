@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const academyController = require('../controllers/academy.controller');
-const authMiddleware = require('../middleware/auth.middleware');
-const { checkRole } = require('../middleware/rbac.middleware');
-const upload = require('../middleware/upload.middleware');
+const academyController = require('./academy.controller');
+const authMiddleware = require('../../middleware/auth.middleware');
+const { checkRole } = require('../../middleware/rbac.middleware');
+const upload = require('../../middleware/upload.middleware');
 
 // Protect all routes - only SUPERADMIN, ADMIN, and EDITOR can access Academy management
 router.use(authMiddleware);

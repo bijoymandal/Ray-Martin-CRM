@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const authRoutes = require('./auth.routes');
-const contactRoutes = require('./contacts.routes');
-const dealRoutes = require('./deals.routes');
-const userRoutes = require('./user.routes');
-const menuRoutes = require('./menu.routes');
-const academyRoutes = require('./academy.routes');
+const authRoutes = require('../features/auth/auth.routes');
+const contactRoutes = require('../features/contacts/contacts.routes');
+const dealRoutes = require('../features/deals/deals.routes');
+const userRoutes = require('../features/users/user.routes');
+const menuRoutes = require('../features/menus/menu.routes');
+const academyRoutes = require('../features/academy/academy.routes');
 
 router.use('/auth', authRoutes);
 router.use('/contacts', contactRoutes);

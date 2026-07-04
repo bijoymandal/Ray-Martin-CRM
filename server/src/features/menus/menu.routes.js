@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const menuController = require('../controllers/menu.controller');
-const authMiddleware = require('../middleware/auth.middleware');
-const { checkRole } = require('../middleware/rbac.middleware');
+const menuController = require('./menu.controller');
+const authMiddleware = require('../../middleware/auth.middleware');
+const { checkRole } = require('../../middleware/rbac.middleware');
 
 const adminOnly = checkRole(['SUPERADMIN', 'ADMIN']);
 

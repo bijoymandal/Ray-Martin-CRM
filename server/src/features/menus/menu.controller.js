@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const prisma = require('../../lib/prisma');
 
 // Get only menus visible to current user's role (All authenticated users)
 exports.getVisibleMenus = async (req, res, next) => {

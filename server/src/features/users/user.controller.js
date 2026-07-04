@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const prisma = require('../../lib/prisma');
 
 // Get all users in the system (Admin only)
 exports.getAllUsers = async (req, res, next) => {

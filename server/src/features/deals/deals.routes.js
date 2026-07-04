@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const dealsController = require('../controllers/deals.controller');
-const authMiddleware = require('../middleware/auth.middleware');
-
-const { checkRole } = require('../middleware/rbac.middleware');
+const dealsController = require('./deals.controller');
+const authMiddleware = require('../../middleware/auth.middleware');
+const { checkRole } = require('../../middleware/rbac.middleware');
 const writeAccess = checkRole(['SUPERADMIN', 'ADMIN', 'SALESMAN']);
 
 // Protect all routes

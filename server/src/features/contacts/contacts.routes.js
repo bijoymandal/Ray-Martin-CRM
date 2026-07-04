@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const contactsController = require('../controllers/contacts.controller');
-const authMiddleware = require('../middleware/auth.middleware');
-
-const { checkRole } = require('../middleware/rbac.middleware');
+const contactsController = require('./contacts.controller');
+const authMiddleware = require('../../middleware/auth.middleware');
+const { checkRole } = require('../../middleware/rbac.middleware');
 
 // Protect all routes
 router.use(authMiddleware);
