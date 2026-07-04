@@ -1,0 +1,152 @@
+const prisma = require('../lib/prisma');
+
+// Get all contacts for the authenticated user
+exports.getAll = async (req, res, next) => {
+  try {
+    const contacts = await prisma.contact.findMany({
+      where: { userId: req.user.id },
+      include: {
+        _count: {
+          select: { deals: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      count: contacts.length,
+      data: contacts,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get a single contact by id
+exports.getById = async (req, res, next) => {
+  try {
+    const contact = await prisma.contact.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id,
+      },
+      include: {
+        deals: true,
+      },
+    });
+
+    if (!contact) {
+      res.status(404);
+      throw new Error('Contact not found');
+    }
+
+    res.json({
+      success: true,
+      data: contact,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Create a new contact
+exports.create = async (req, res, next) => {
+  try {
+    const { firstName, lastName, email, phone, company, status, notes } = req.body;
+
+    if (!firstName || !lastName || !email) {
+      res.status(400);
+      throw new Error('First name, last name, and email are required');
+    }
+
+    const contact = await prisma.contact.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        phone,
+        company,
+        status: status || 'LEAD',
+        notes,
+        userId: req.user.id,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: contact,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update an existing contact
+exports.update = async (req, res, next) => {
+  try {
+    const { firstName, lastName, email, phone, company, status, notes } = req.body;
+
+    // Check if contact exists and belongs to user
+    const contactExists = await prisma.contact.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!contactExists) {
+      res.status(404);
+      throw new Error('Contact not found');
+    }
+
+    const contact = await prisma.contact.update({
+      where: { id: req.params.id },
+      data: {
+        firstName: firstName !== undefined ? firstName : contactExists.firstName,
+        lastName: lastName !== undefined ? lastName : contactExists.lastName,
+        email: email !== undefined ? email : contactExists.email,
+        phone: phone !== undefined ? phone : contactExists.phone,
+        company: company !== undefined ? company : contactExists.company,
+        status: status !== undefined ? status : contactExists.status,
+        notes: notes !== undefined ? notes : contactExists.notes,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: contact,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Delete a contact
+exports.delete = async (req, res, next) => {
+  try {
+    // Check if contact exists and belongs to user
+    const contactExists = await prisma.contact.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!contactExists) {
+      res.status(404);
+      throw new Error('Contact not found or unauthorized');
+    }
+
+    await prisma.contact.delete({
+      where: { id: req.params.id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Contact removed successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
