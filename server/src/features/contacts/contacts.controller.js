@@ -1,4 +1,5 @@
 const prisma = require('../../lib/prisma');
+const { logActivity } = require('../../lib/activity-logger');
 
 // Get all contacts for the authenticated user
 exports.getAll = async (req, res, next) => {
@@ -73,6 +74,15 @@ exports.create = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'CREATE',
+      'CONTACT',
+      `Created contact: ${contact.firstName} ${contact.lastName}`,
+      null,
+      contact
+    );
+
     res.status(201).json({
       success: true,
       data: contact,
@@ -113,6 +123,15 @@ exports.update = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'UPDATE',
+      'CONTACT',
+      `Updated contact: ${contact.firstName} ${contact.lastName}`,
+      contactExists,
+      contact
+    );
+
     res.json({
       success: true,
       data: contact,
@@ -141,6 +160,15 @@ exports.delete = async (req, res, next) => {
     await prisma.contact.delete({
       where: { id: req.params.id },
     });
+
+    await logActivity(
+      req,
+      'DELETE',
+      'CONTACT',
+      `Deleted contact: ${contactExists.firstName} ${contactExists.lastName}`,
+      contactExists,
+      null
+    );
 
     res.json({
       success: true,
