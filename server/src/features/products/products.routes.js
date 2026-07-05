@@ -2,31 +2,34 @@ const express = require('express');
 const router = express.Router();
 const productsController = require('./products.controller');
 const authMiddleware = require('../../middleware/auth.middleware');
-const { checkRole } = require('../../middleware/rbac.middleware');
+const { checkDynamicPermission } = require('../../middleware/rbac.middleware');
 const upload = require('../../middleware/upload.middleware');
 
-// Protect all routes - only SUPERADMIN, ADMIN, and EDITOR can CRUD, SALESMAN has default access (let's allow SALESMAN as well per menu permission)
 router.use(authMiddleware);
-router.use(checkRole(['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']));
 
-router.route('/')
-  .get(productsController.getAll)
-  .post(
-    upload.fields([
-      { name: 'image', maxCount: 1 },
-      { name: 'gallery', maxCount: 10 }
-    ]),
-    productsController.create
-  );
+// Dynamic check based on DB configuration
+router.get('/', checkDynamicPermission('/products', 'canView'), productsController.getAll);
 
-router.route('/:id')
-  .put(
-    upload.fields([
-      { name: 'image', maxCount: 1 },
-      { name: 'gallery', maxCount: 10 }
-    ]),
-    productsController.update
-  )
-  .delete(productsController.delete);
+router.post(
+  '/',
+  checkDynamicPermission('/products', 'canCreate'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'gallery', maxCount: 10 }
+  ]),
+  productsController.create
+);
+
+router.put(
+  '/:id',
+  checkDynamicPermission('/products', 'canEdit'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'gallery', maxCount: 10 }
+  ]),
+  productsController.update
+);
+
+router.delete('/:id', checkDynamicPermission('/products', 'canDelete'), productsController.delete);
 
 module.exports = router;

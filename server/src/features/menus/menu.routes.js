@@ -11,6 +11,7 @@ router.use(authMiddleware);
 
 // Visible menu listing for current user
 router.get('/', menuController.getVisibleMenus);
+router.get('/my-permissions', menuController.getMyPermissions);
 
 // Admin-only management endpoints
 router.get('/all', adminOnly, menuController.getAllMenus);

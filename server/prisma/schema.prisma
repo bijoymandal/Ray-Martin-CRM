@@ -7,12 +7,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  SUPERADMIN
-  ADMIN
-  EDITOR
-  ACCOUNT
-  SALESMAN
+model Role {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum ContactStatus {
@@ -35,7 +35,7 @@ model User {
   email     String    @unique
   name      String
   password  String
-  role      Role      @default(SALESMAN)
+  role      String    @default("SALESMAN")
   contacts  Contact[]
   deals     Deal[]
   createdAt DateTime  @default(now())
@@ -72,14 +72,36 @@ model Deal {
 }
 
 model Menu {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String       @unique
+  path        String
+  iconName    String
+  roles       String[]
+  order       Int          @default(0)
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model PermissionAction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  label       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Permission {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   @unique
-  path      String
-  iconName  String
-  roles     Role[]
-  order     Int      @default(0)
+  role      String
+  menuId    String   @db.ObjectId
+  menu      Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  actions   String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([role, menuId])
 }
 
 model Board {
@@ -144,4 +166,17 @@ model Product {
   category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String?
+  userEmail  String?
+  userName   String?
+  action     String   // VISIT, CREATE, UPDATE, DELETE
+  resource   String   // CONTACT, DEAL, PRODUCT, MENU, ROLE, PERMISSION
+  details    String?
+  oldValues  Json?
+  newValues  Json?
+  timestamp  DateTime @default(now())
 }

@@ -9,6 +9,17 @@ import {
   updateMenuAPI,
   deleteMenuAPI,
   transferMenuPermissionsAPI,
+  getPermissionsAPI,
+  updatePermissionAPI,
+  getRolesAPI,
+  createRoleAPI,
+  updateRoleAPI,
+  deleteRoleAPI,
+  getPermissionActionsAPI,
+  createPermissionActionAPI,
+  updatePermissionActionAPI,
+  deletePermissionActionAPI,
+  getActivityLogsAPI,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -28,7 +39,7 @@ import {
 
 const Admin = () => {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'menus'
+  const [activeTab, setActiveTab] = useState('users'); // 'users', 'menus', 'permissions'
 
   // User states
   const [users, setUsers] = useState([]);
@@ -37,6 +48,10 @@ const Admin = () => {
   // Menu states
   const [menus, setMenus] = useState([]);
   const [menusLoading, setMenusLoading] = useState(false);
+
+  // Permission states
+  const [permissions, setPermissions] = useState([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
 
   // Error/Success statuses
   const [error, setError] = useState('');
@@ -58,7 +73,35 @@ const Admin = () => {
     action: 'copy', // 'copy' or 'move'
   });
 
-  const rolesList = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN'];
+  // Role states
+  const [roles, setRoles] = useState([
+    { name: 'SUPERADMIN', description: 'Super Administrator with full bypass rights' },
+    { name: 'ADMIN', description: 'Administrator with full system privileges' },
+    { name: 'EDITOR', description: 'Editor with read and write access to resources' },
+    { name: 'ACCOUNT', description: 'Accountant with limited view and financial access' },
+    { name: 'SALESMAN', description: 'Sales representative with lead and deal access' }
+  ]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [newRole, setNewRole] = useState({ name: '', description: '' });
+  const [editingRole, setEditingRole] = useState(null);
+
+  const rolesList = roles.map((r) => r.name);
+
+  // Permission actions states
+  const [permissionActions, setPermissionActions] = useState([
+    { name: 'canView', label: 'View', description: 'Access and view menu' },
+    { name: 'canCreate', label: 'Create', description: 'Create new records' },
+    { name: 'canEdit', label: 'Edit', description: 'Edit existing records' },
+    { name: 'canDelete', label: 'Delete', description: 'Delete records' }
+  ]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [newAction, setNewAction] = useState({ name: '', label: '', description: '' });
+  const [editingAction, setEditingAction] = useState(null);
+
+  // Activity logs states
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [expandedLog, setExpandedLog] = useState(null);
 
   const fetchUsers = async () => {
     try {
@@ -91,11 +134,89 @@ const Admin = () => {
     }
   };
 
+  const fetchPermissions = async () => {
+    setPermissionsLoading(true);
+    try {
+      setError('');
+      const res = await getPermissionsAPI();
+      if (res.success) {
+        setPermissions(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error loading permissions');
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    setRolesLoading(true);
+    try {
+      setError('');
+      const res = await getRolesAPI();
+      if (res.success) {
+        setRoles(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error loading roles list');
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
+  const fetchPermissionActions = async () => {
+    setActionsLoading(true);
+    try {
+      setError('');
+      const res = await getPermissionActionsAPI();
+      if (res.success) {
+        setPermissionActions(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error loading permission actions');
+    } finally {
+      setActionsLoading(false);
+    }
+  };
+
+  const fetchActivityLogs = async () => {
+    setActivityLoading(true);
+    try {
+      setError('');
+      const res = await getActivityLogsAPI();
+      if (res.success) {
+        setActivityLogs(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error loading activity logs');
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+    fetchPermissionActions();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
-    } else {
+    } else if (activeTab === 'menus') {
       fetchMenus();
+    } else if (activeTab === 'permissions') {
+      fetchMenus(); // Needed to align rows
+      fetchPermissionActions();
+      fetchPermissions();
+    } else if (activeTab === 'roles') {
+      fetchRoles();
+      fetchPermissionActions();
+    } else if (activeTab === 'activity') {
+      fetchActivityLogs();
     }
   }, [activeTab]);
 
@@ -113,6 +234,23 @@ const Admin = () => {
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Error updating user role');
+    }
+  };
+
+  // Handle dynamic permissions checkbox toggles (SUPERADMIN controls)
+  const handleTogglePerm = async (permId, actionName, enabled) => {
+    try {
+      setError('');
+      setSuccess('');
+      const res = await updatePermissionAPI(permId, { actionName, enabled });
+      if (res.success) {
+        setSuccess('Permission updated successfully.');
+        fetchPermissions();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error updating permission');
     }
   };
 
@@ -215,6 +353,123 @@ const Admin = () => {
     }
   };
 
+  const handleRoleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newRole.name.trim()) {
+      setError('Role name is required');
+      return;
+    }
+    try {
+      setError('');
+      setSuccess('');
+      if (editingRole) {
+        // Update role
+        const res = await updateRoleAPI(editingRole.id, newRole);
+        if (res.success) {
+          setSuccess(`Successfully updated role to '${res.data.name}'`);
+          setEditingRole(null);
+          setNewRole({ name: '', description: '' });
+          fetchRoles();
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      } else {
+        // Create role
+        const res = await createRoleAPI(newRole);
+        if (res.success) {
+          setSuccess(`Successfully created role '${res.data.name}'`);
+          setNewRole({ name: '', description: '' });
+          fetchRoles();
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error processing role request');
+    }
+  };
+
+  const handleDeleteRole = async (id, name) => {
+    if (['SUPERADMIN', 'ADMIN'].includes(name)) {
+      setError('System roles cannot be deleted.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete role '${name}'? This will remove its permissions and pull it from any assigned menus.`)) {
+      return;
+    }
+    try {
+      setError('');
+      setSuccess('');
+      const res = await deleteRoleAPI(id);
+      if (res.success) {
+        setSuccess(`Successfully deleted role '${name}'`);
+        fetchRoles();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error deleting role');
+    }
+  };
+
+  const handleActionSubmit = async (e) => {
+    e.preventDefault();
+    if (!newAction.name.trim() || !newAction.label.trim()) {
+      setError('Name and Label are required');
+      return;
+    }
+    try {
+      setError('');
+      setSuccess('');
+      if (editingAction) {
+        // Update action
+        const res = await updatePermissionActionAPI(editingAction.id, newAction);
+        if (res.success) {
+          setSuccess(`Successfully updated action to '${res.data.label}'`);
+          setEditingAction(null);
+          setNewAction({ name: '', label: '', description: '' });
+          fetchPermissionActions();
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      } else {
+        // Create action
+        const res = await createPermissionActionAPI(newAction);
+        if (res.success) {
+          setSuccess(`Successfully created permission action '${res.data.label}'`);
+          setNewAction({ name: '', label: '', description: '' });
+          fetchPermissionActions();
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error processing action request');
+    }
+  };
+
+  const handleDeleteAction = async (id, name) => {
+    const isSystemAction = ['canView', 'canCreate', 'canEdit', 'canDelete'].includes(name);
+    if (isSystemAction) {
+      setError('System core actions cannot be deleted.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete permission action '${name}'? This will pull it from all roles' permissions across the system.`)) {
+      return;
+    }
+    try {
+      setError('');
+      setSuccess('');
+      const res = await deletePermissionActionAPI(id);
+      if (res.success) {
+        setSuccess(`Successfully deleted permission action '${name}'`);
+        fetchPermissionActions();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error deleting permission action');
+    }
+  };
+
   const getRoleBadgeClass = (role) => {
     switch (role) {
       case 'SUPERADMIN':
@@ -274,6 +529,40 @@ const Admin = () => {
             >
               Menu & Permissions Panel
             </button>
+            <button
+              onClick={() => setActiveTab('roles')}
+              className={`pb-4 px-2 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                activeTab === 'roles'
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+            >
+              Role Settings
+            </button>
+            {currentUser?.role === 'SUPERADMIN' && (
+              <>
+                <button
+                  onClick={() => setActiveTab('permissions')}
+                  className={`pb-4 px-2 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                    activeTab === 'permissions'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  Dynamic Permissions Matrix
+                </button>
+                <button
+                  onClick={() => setActiveTab('activity')}
+                  className={`pb-4 px-2 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                    activeTab === 'activity'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  User Activity Logs
+                </button>
+              </>
+            )}
           </div>
 
           {error && (
@@ -291,7 +580,268 @@ const Admin = () => {
           )}
 
           {/* Tab Content */}
-          {activeTab === 'users' ? (
+          {activeTab === 'roles' ? (
+            rolesLoading || actionsLoading ? (
+              <div className="skeleton h-[350px] rounded-2xl" />
+            ) : (
+              <div className="flex flex-col gap-12 animate-fade-in">
+                {/* 1. Dynamic Roles Section */}
+                <div>
+                  <div className="border-b border-slate-200/60 dark:border-white/5 pb-3 mb-6">
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      <span className="text-xs bg-indigo-500/10 text-indigo-600 px-2 py-0.5 rounded-md dark:bg-indigo-500/20 dark:text-indigo-400 font-bold">01</span>
+                      Dynamic Roles Configuration
+                    </h2>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Manage system user roles. Renaming propagations and cascading deletes are processed automatically.</p>
+                  </div>
+
+                  <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Roles list */}
+                    <div className="flex-1">
+                      <div className="glass-card p-0 overflow-hidden">
+                        <table className="w-full text-left text-sm border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-200/60 dark:border-white/5 bg-slate-50/20 dark:bg-white/1">
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Role Name</th>
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Description</th>
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
+                            {roles.map((r) => {
+                              const isSystem = ['SUPERADMIN', 'ADMIN'].includes(r.name);
+                              return (
+                                <tr key={r.id || r.name} className="hover:bg-slate-50/50 dark:hover:bg-white/1">
+                                  <td className="p-4 font-semibold text-slate-800 dark:text-slate-200">
+                                    <span className={getRoleBadgeClass(r.name)}>
+                                      {r.name}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-slate-500 dark:text-slate-400 text-xs">
+                                    {r.description}
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    {isSystem ? (
+                                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded border border-slate-200/25 dark:border-white/5">System</span>
+                                    ) : (
+                                      <div className="inline-flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setEditingRole(r);
+                                            setNewRole({ name: r.name, description: r.description });
+                                          }}
+                                          className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteRole(r.id, r.name)}
+                                          className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Create/Edit Form card */}
+                    <div className="w-full lg:w-[380px]">
+                      <div className="glass-card p-6">
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-4 flex items-center gap-2">
+                          <Plus size={16} className="text-indigo-500" />
+                          {editingRole ? `Edit Role: ${editingRole.name}` : 'Create Dynamic Role'}
+                        </h3>
+                        <form onSubmit={handleRoleSubmit} className="flex flex-col gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Role Name</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. MARKETING"
+                              value={newRole.name}
+                              disabled={editingRole && ['SUPERADMIN', 'ADMIN'].includes(editingRole.name)}
+                              onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                              className="glass-input w-full px-3 py-2 text-xs"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
+                            <textarea
+                              placeholder="Role description and business function..."
+                              value={newRole.description}
+                              onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                              className="glass-input w-full px-3 py-2 text-xs min-h-[80px]"
+                            />
+                          </div>
+                          <div className="flex gap-2.5 mt-2">
+                            <button
+                              type="submit"
+                              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-2.5 font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all cursor-pointer"
+                            >
+                              {editingRole ? 'Save Changes' : 'Create Role'}
+                            </button>
+                            {editingRole && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingRole(null);
+                                  setNewRole({ name: '', description: '' });
+                                }}
+                                className="bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-slate-600 dark:text-slate-300 rounded-xl px-4 py-2.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Dynamic Permission Actions Section */}
+                <div>
+                  <div className="border-b border-slate-200/60 dark:border-white/5 pb-3 mb-6">
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      <span className="text-xs bg-indigo-500/10 text-indigo-600 px-2 py-0.5 rounded-md dark:bg-indigo-500/20 dark:text-indigo-400 font-bold">02</span>
+                      Dynamic Permission Actions Configuration
+                    </h2>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Define dynamic permission action identifiers (like <code>canView</code>, <code>canCreate</code>, or custom <code>canExport</code>, <code>canApprove</code>).</p>
+                  </div>
+
+                  <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Actions list */}
+                    <div className="flex-1">
+                      <div className="glass-card p-0 overflow-hidden">
+                        <table className="w-full text-left text-sm border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-200/60 dark:border-white/5 bg-slate-50/20 dark:bg-white/1">
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Action Code</th>
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Label</th>
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Description</th>
+                              <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
+                            {permissionActions.map((a) => {
+                              const isSystem = ['canView', 'canCreate', 'canEdit', 'canDelete'].includes(a.name);
+                              return (
+                                <tr key={a.id || a.name} className="hover:bg-slate-50/50 dark:hover:bg-white/1">
+                                  <td className="p-4 font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                                    <code>{a.name}</code>
+                                  </td>
+                                  <td className="p-4 text-slate-800 dark:text-slate-200 font-semibold text-xs">
+                                    {a.label}
+                                  </td>
+                                  <td className="p-4 text-slate-500 dark:text-slate-400 text-xs">
+                                    {a.description}
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    {isSystem ? (
+                                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded border border-slate-200/25 dark:border-white/5">System</span>
+                                    ) : (
+                                      <div className="inline-flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setEditingAction(a);
+                                            setNewAction({ name: a.name, label: a.label, description: a.description });
+                                          }}
+                                          className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteAction(a.id, a.name)}
+                                          className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Actions form */}
+                    <div className="w-full lg:w-[380px]">
+                      <div className="glass-card p-6">
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-4 flex items-center gap-2">
+                          <Plus size={16} className="text-indigo-500" />
+                          {editingAction ? `Edit Action: ${editingAction.label}` : 'Create Dynamic Action'}
+                        </h3>
+                        <form onSubmit={handleActionSubmit} className="flex flex-col gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Action Name (camelCase starting with "can")</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. canExport"
+                              value={newAction.name}
+                              disabled={!!editingAction}
+                              onChange={(e) => setNewAction({ ...newAction, name: e.target.value })}
+                              className="glass-input w-full px-3 py-2 text-xs"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Display Label</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Export"
+                              value={newAction.label}
+                              onChange={(e) => setNewAction({ ...newAction, label: e.target.value })}
+                              className="glass-input w-full px-3 py-2 text-xs"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Description</label>
+                            <textarea
+                              placeholder="Describe the access privilege..."
+                              value={newAction.description}
+                              onChange={(e) => setNewAction({ ...newAction, description: e.target.value })}
+                              className="glass-input w-full px-3 py-2 text-xs min-h-[80px]"
+                            />
+                          </div>
+                          <div className="flex gap-2.5 mt-2">
+                            <button
+                              type="submit"
+                              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-2.5 font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all cursor-pointer"
+                            >
+                              {editingAction ? 'Save Changes' : 'Create Action'}
+                            </button>
+                            {editingAction && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingAction(null);
+                                  setNewAction({ name: '', label: '', description: '' });
+                                }}
+                                className="bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 text-slate-600 dark:text-slate-300 rounded-xl px-4 py-2.5 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : activeTab === 'users' ? (
             usersLoading ? (
               <div className="skeleton h-[350px] rounded-2xl" />
             ) : (
@@ -345,11 +895,11 @@ const Admin = () => {
                                   onChange={(e) => handleRoleChange(u.id, e.target.value)}
                                   className="glass-input py-1.5 pr-8 text-xs cursor-pointer min-w-[140px] bg-none"
                                 >
-                                  <option value="SUPERADMIN">Superadmin</option>
-                                  <option value="ADMIN">Admin</option>
-                                  <option value="EDITOR">Editor</option>
-                                  <option value="ACCOUNT">Account</option>
-                                  <option value="SALESMAN">Salesman</option>
+                                  {roles.map((r) => (
+                                    <option key={r.id || r.name} value={r.name}>
+                                      {r.name.charAt(0) + r.name.slice(1).toLowerCase()}
+                                    </option>
+                                  ))}
                                 </select>
                               </div>
                             )}
@@ -361,7 +911,7 @@ const Admin = () => {
                 </div>
               </div>
             )
-          ) : (
+          ) : activeTab === 'menus' ? (
             // MENUS TAB
             <div className="flex flex-col gap-12 animate-fade-in">
               {/* Section 1: Menu Configurations */}
@@ -645,8 +1195,196 @@ const Admin = () => {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'permissions' ? (
+            <div className="glass-card p-6 border-slate-200/60 dark:border-white/5 w-full animate-fade-in">
+              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-4">
+                Dynamic Permission Matrix (SUPERADMIN Control Panel)
+              </h2>
+              {permissionsLoading ? (
+                <div className="text-center py-10 text-xs text-slate-400 font-semibold">
+                  Loading permission grid...
+                </div>
+              ) : (
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200/60 dark:border-white/5 text-slate-400 uppercase tracking-wider font-bold">
+                        <th className="p-4 pl-0">Menu / Route Path</th>
+                        {rolesList.map((r) => (
+                          <th key={r} className="p-4 text-center">{r}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                      {menus.map((menu) => (
+                        <tr key={menu.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2 transition-colors">
+                          <td className="p-4 pl-0">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-700 dark:text-slate-200">{menu.name}</span>
+                              <span className="text-[10px] text-slate-400">{menu.path}</span>
+                            </div>
+                          </td>
+                          {rolesList.map((role) => {
+                            const perm = permissions.find(p => p.menuId === menu.id && p.role === role);
+                            if (!perm) {
+                              return (
+                                <td key={role} className="p-4 text-center text-slate-500 italic">
+                                  No rules
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={role} className="p-4 text-center">
+                                <div className="inline-flex flex-col gap-1 items-start bg-slate-50 dark:bg-white/1 p-2.5 rounded-xl border border-slate-200/40 dark:border-white/5 shadow-inner">
+                                  {permissionActions.map((action) => {
+                                    const isChecked = perm.actions ? perm.actions.includes(action.name) : false;
+                                    return (
+                                      <label key={action.name} className="flex items-center gap-1.5 cursor-pointer select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          disabled={role === 'SUPERADMIN'}
+                                          onChange={() => handleTogglePerm(perm.id, action.name, !isChecked)}
+                                          className="rounded border-slate-300 dark:border-white/10 dark:bg-dark-deep text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                                        />
+                                        <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-bold">
+                                          {action.label}
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* User Activity Logs Tab (Superadmin exclusive audit logs dashboard) */
+            <div className="glass-card p-6 border-slate-200/60 dark:border-white/5 w-full animate-fade-in">
+              <div className="flex justify-between items-center mb-6 border-b border-slate-200/60 dark:border-white/5 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                    System Audit & User Activity Logs
+                  </h2>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Real-time log of every menu visit, record creation, modification, and deletion across all components.</p>
+                </div>
+                <button
+                  onClick={fetchActivityLogs}
+                  className="px-3.5 py-1.5 border border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+                >
+                  Refresh Logs
+                </button>
+              </div>
+
+              {activityLoading ? (
+                <div className="text-center py-10 text-xs text-slate-400 font-semibold">
+                  Loading activity timeline...
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-400 font-semibold italic">
+                  No activity logs registered yet.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {activityLogs.map((log) => {
+                    const badgeClass = ((action) => {
+                      switch (action) {
+                        case 'CREATE': return 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+                        case 'UPDATE': return 'bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20';
+                        case 'DELETE': return 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+                        case 'VISIT':
+                        default: return 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-white/5 dark:text-slate-400 dark:border-white/10';
+                      }
+                    })(log.action);
+
+                    const hasDiff = log.oldValues || log.newValues;
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-4 rounded-xl border border-slate-200/50 dark:border-white/5 bg-slate-50/20 dark:bg-white/1 flex flex-col gap-2 transition-all duration-200 hover:border-slate-300 dark:hover:border-white/10"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide ${badgeClass}`}>
+                              {log.action}
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded">
+                              {log.resource}
+                            </span>
+                            <span className="text-slate-600 dark:text-slate-300 font-medium">
+                              {log.details}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 text-[11px] text-slate-400 font-semibold">
+                            <span>
+                              {new Date(log.timestamp).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400 border-t border-slate-100 dark:border-white/3 pt-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-[8px]">
+                              {log.userName ? log.userName[0].toUpperCase() : 'U'}
+                            </div>
+                            <span>
+                              Logged by: <strong className="text-slate-600 dark:text-slate-300">{log.userName || 'Anonymous'}</strong> ({log.userEmail || 'unknown'})
+                            </span>
+                          </div>
+
+                          {hasDiff && (
+                            <button
+                              onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
+                              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                            >
+                              {expandedLog === log.id ? 'Collapse Details' : 'Inspect Database Payload'}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inspector Dropdown block */}
+                        {expandedLog === log.id && hasDiff && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 p-4 bg-slate-950 rounded-xl text-left border border-white/5 font-mono text-[10px] text-slate-300">
+                            <div>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-rose-400 block mb-2 border-b border-rose-500/10 pb-1">Previous Values (Before)</span>
+                              {log.oldValues ? (
+                                <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-[250px]">{JSON.stringify(log.oldValues, null, 2)}</pre>
+                              ) : (
+                                <span className="text-slate-500 italic">None</span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 block mb-2 border-b border-emerald-500/10 pb-1">Updated Values (After)</span>
+                              {log.newValues ? (
+                                <pre className="overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-[250px]">{JSON.stringify(log.newValues, null, 2)}</pre>
+                              ) : (
+                                <span className="text-slate-500 italic">None</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
-        </div>
+          </div>
       </div>
     </div>
   );

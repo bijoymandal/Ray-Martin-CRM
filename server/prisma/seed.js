@@ -15,9 +15,66 @@ async function main() {
   await prisma.class.deleteMany({});
   await prisma.subject.deleteMany({});
   await prisma.category.deleteMany({});
+  await prisma.role.deleteMany({});
+  await prisma.permission.deleteMany({});
+  await prisma.permissionAction.deleteMany({});
 
-  // Seed default menus
-  await prisma.menu.create({
+  console.log('Seeding roles...');
+  const rolesList = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN'];
+  const roleDescriptions = {
+    SUPERADMIN: 'Super Administrator with full bypass rights',
+    ADMIN: 'Administrator with full system privileges',
+    EDITOR: 'Editor with read and write access to resources',
+    ACCOUNT: 'Accountant with limited view and financial access',
+    SALESMAN: 'Sales representative with lead and deal access',
+  };
+
+  for (const roleName of rolesList) {
+    await prisma.role.create({
+      data: {
+        name: roleName,
+        description: roleDescriptions[roleName] || `${roleName} Role`,
+      },
+    });
+  }
+
+  console.log('Seeding permission actions...');
+  const defaultActions = [
+    { name: 'canView', label: 'View', description: 'Access and view menu' },
+    { name: 'canCreate', label: 'Create', description: 'Create new records' },
+    { name: 'canEdit', label: 'Edit', description: 'Edit existing records' },
+    { name: 'canDelete', label: 'Delete', description: 'Delete records' }
+  ];
+
+  for (const action of defaultActions) {
+    await prisma.permissionAction.create({
+      data: action
+    });
+  }
+
+  // Helper to seed permissions for a menu
+  const seedPermissions = async (menu, rules) => {
+    const roles = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN'];
+    for (const role of roles) {
+      const r = rules[role] || { canView: false, canCreate: false, canEdit: false, canDelete: false };
+      const actions = [];
+      if (r.canView) actions.push('canView');
+      if (r.canCreate) actions.push('canCreate');
+      if (r.canEdit) actions.push('canEdit');
+      if (r.canDelete) actions.push('canDelete');
+
+      await prisma.permission.create({
+        data: {
+          role,
+          menuId: menu.id,
+          actions
+        }
+      });
+    }
+  };
+
+  // 1. Dashboard Menu
+  const mDashboard = await prisma.menu.create({
     data: {
       name: 'Dashboard',
       path: '/',
@@ -26,8 +83,16 @@ async function main() {
       order: 1,
     },
   });
+  await seedPermissions(mDashboard, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ACCOUNT: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    SALESMAN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  });
 
-  await prisma.menu.create({
+  // 2. Contacts Menu
+  const mContacts = await prisma.menu.create({
     data: {
       name: 'Contacts',
       path: '/contacts',
@@ -36,8 +101,14 @@ async function main() {
       order: 2,
     },
   });
+  await seedPermissions(mContacts, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  });
 
-  await prisma.menu.create({
+  // 3. Deals Menu
+  const mDeals = await prisma.menu.create({
     data: {
       name: 'Deals',
       path: '/deals',
@@ -46,8 +117,16 @@ async function main() {
       order: 3,
     },
   });
+  await seedPermissions(mDeals, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ACCOUNT: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    SALESMAN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  });
 
-  await prisma.menu.create({
+  // 4. Admin Center Menu
+  const mAdmin = await prisma.menu.create({
     data: {
       name: 'Admin Center',
       path: '/admin',
@@ -56,8 +135,13 @@ async function main() {
       order: 4,
     },
   });
+  await seedPermissions(mAdmin, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  });
 
-  await prisma.menu.create({
+  // 5. Academy Menu
+  const mAcademy = await prisma.menu.create({
     data: {
       name: 'Academy',
       path: '/academy',
@@ -66,8 +150,14 @@ async function main() {
       order: 5,
     },
   });
+  await seedPermissions(mAcademy, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+  });
 
-  await prisma.menu.create({
+  // 6. Products Menu
+  const mProducts = await prisma.menu.create({
     data: {
       name: 'Products',
       path: '/products',
@@ -76,8 +166,14 @@ async function main() {
       order: 6,
     },
   });
+  await seedPermissions(mProducts, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    SALESMAN: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+  });
 
-  console.log('Created default menus.');
+  console.log('Created default menus and their permission matrices.');
 
   const hashedPassword = await bcrypt.hash('admin123', 12);
 

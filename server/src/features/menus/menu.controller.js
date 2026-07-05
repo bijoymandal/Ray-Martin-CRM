@@ -1,21 +1,97 @@
 const prisma = require('../../lib/prisma');
+const { logActivity } = require('../../lib/activity-logger');
 
-// Get only menus visible to current user's role (All authenticated users)
+// Get only menus visible to current user's role (Dynamic permission lookup)
 exports.getVisibleMenus = async (req, res, next) => {
   try {
-    const menus = await prisma.menu.findMany({
+    const menusAll = await prisma.menu.findMany();
+    const role = req.user.role;
+
+    for (const menu of menusAll) {
+      const existing = await prisma.permission.findFirst({
+        where: { menuId: menu.id, role },
+      });
+      if (!existing) {
+        const isSuper = role === 'SUPERADMIN';
+        const defaultActions = isSuper ? ['canView', 'canCreate', 'canEdit', 'canDelete'] : [];
+        if (!isSuper && menu.roles.includes(role)) {
+          defaultActions.push('canView');
+        }
+        await prisma.permission.create({
+          data: {
+            role,
+            menuId: menu.id,
+            actions: defaultActions,
+          },
+        });
+      }
+    }
+
+    const permissions = await prisma.permission.findMany({
       where: {
-        roles: {
-          has: req.user.role,
+        role: req.user.role,
+        actions: {
+          has: 'canView',
         },
       },
-      orderBy: { order: 'asc' },
+      include: {
+        menu: true,
+      },
     });
+
+    const menus = permissions
+      .map((p) => p.menu)
+      .filter(Boolean)
+      .sort((a, b) => a.order - b.order);
 
     res.json({
       success: true,
       count: menus.length,
       data: menus,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all permission flags for the caller's role (All roles)
+exports.getMyPermissions = async (req, res, next) => {
+  try {
+    const menus = await prisma.menu.findMany();
+    const role = req.user.role;
+
+    for (const menu of menus) {
+      const existing = await prisma.permission.findFirst({
+        where: { menuId: menu.id, role },
+      });
+      if (!existing) {
+        const isSuper = role === 'SUPERADMIN';
+        const defaultActions = isSuper ? ['canView', 'canCreate', 'canEdit', 'canDelete'] : [];
+        if (!isSuper && menu.roles.includes(role)) {
+          defaultActions.push('canView');
+        }
+        await prisma.permission.create({
+          data: {
+            role,
+            menuId: menu.id,
+            actions: defaultActions,
+          },
+        });
+      }
+    }
+
+    const permissions = await prisma.permission.findMany({
+      where: {
+        role: req.user.role,
+      },
+      include: {
+        menu: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: permissions,
     });
   } catch (error) {
     next(error);
@@ -61,6 +137,35 @@ exports.createMenu = async (req, res, next) => {
       },
     });
 
+    // Automatically create permission matrices for all roles in the system
+    const dbRoles = await prisma.role.findMany();
+    const rolesList = dbRoles.map((r) => r.name);
+    await Promise.all(
+      rolesList.map((r) => {
+        const isSuper = r === 'SUPERADMIN';
+        const defaultActions = isSuper ? ['canView', 'canCreate', 'canEdit', 'canDelete'] : [];
+        if (!isSuper && roles && roles.includes(r)) {
+          defaultActions.push('canView');
+        }
+        return prisma.permission.create({
+          data: {
+            role: r,
+            menuId: newMenu.id,
+            actions: defaultActions,
+          },
+        });
+      })
+    );
+
+    await logActivity(
+      req,
+      'CREATE',
+      'MENU',
+      `Created menu: ${newMenu.name} (${newMenu.path})`,
+      null,
+      newMenu
+    );
+
     res.status(201).json({
       success: true,
       message: 'Menu created successfully',
@@ -97,6 +202,60 @@ exports.updateMenu = async (req, res, next) => {
       },
     });
 
+    // If roles array was updated, sync individual permission rules for all roles
+    if (roles !== undefined) {
+      const dbRoles = await prisma.role.findMany();
+      const rolesList = dbRoles.map((r) => r.name);
+      await Promise.all(
+        rolesList.map(async (r) => {
+          const isSuper = r === 'SUPERADMIN';
+          const hasView = isSuper || roles.includes(r);
+          
+          const existingPerm = await prisma.permission.findFirst({
+            where: { menuId: id, role: r },
+          });
+
+          if (existingPerm) {
+            let updatedActions = [...existingPerm.actions];
+            if (hasView) {
+              if (!updatedActions.includes('canView')) {
+                updatedActions.push('canView');
+              }
+            } else {
+              updatedActions = updatedActions.filter(a => a !== 'canView');
+            }
+            await prisma.permission.update({
+              where: { id: existingPerm.id },
+              data: {
+                actions: updatedActions,
+              },
+            });
+          } else {
+            const defaultActions = isSuper ? ['canView', 'canCreate', 'canEdit', 'canDelete'] : [];
+            if (!isSuper && hasView) {
+              defaultActions.push('canView');
+            }
+            await prisma.permission.create({
+              data: {
+                role: r,
+                menuId: id,
+                actions: defaultActions,
+              },
+            });
+          }
+        })
+      );
+    }
+
+    await logActivity(
+      req,
+      'UPDATE',
+      'MENU',
+      `Updated menu: ${updatedMenu.name}`,
+      menu,
+      updatedMenu
+    );
+
     res.json({
       success: true,
       message: 'Menu updated successfully',
@@ -125,6 +284,15 @@ exports.deleteMenu = async (req, res, next) => {
       where: { id },
     });
 
+    await logActivity(
+      req,
+      'DELETE',
+      'MENU',
+      `Deleted menu: ${menu.name}`,
+      menu,
+      null
+    );
+
     res.json({
       success: true,
       message: 'Menu deleted successfully',
@@ -149,21 +317,85 @@ exports.transferMenuPermissions = async (req, res, next) => {
     const menus = await prisma.menu.findMany();
 
     for (const menu of menus) {
-      let updatedRoles = [...menu.roles];
-      if (updatedRoles.includes(fromRole)) {
-        if (!updatedRoles.includes(toRole)) {
-          updatedRoles.push(toRole);
-        }
-        if (actionType === 'move') {
-          updatedRoles = updatedRoles.filter((r) => r !== fromRole);
-        }
-
-        await prisma.menu.update({
-          where: { id: menu.id },
-          data: { roles: updatedRoles },
+      // Find or create permission for fromRole
+      let fromPerm = await prisma.permission.findFirst({
+        where: { menuId: menu.id, role: fromRole },
+      });
+      if (!fromPerm) {
+        const defaultActions = [];
+        if (menu.roles.includes(fromRole)) defaultActions.push('canView');
+        fromPerm = await prisma.permission.create({
+          data: {
+            role: fromRole,
+            menuId: menu.id,
+            actions: defaultActions,
+          },
         });
       }
+
+      // Find or create permission for toRole
+      let toPerm = await prisma.permission.findFirst({
+        where: { menuId: menu.id, role: toRole },
+      });
+      if (!toPerm) {
+        const defaultActions = [];
+        if (menu.roles.includes(toRole)) defaultActions.push('canView');
+        toPerm = await prisma.permission.create({
+          data: {
+            role: toRole,
+            menuId: menu.id,
+            actions: defaultActions,
+          },
+        });
+      }
+
+      if (actionType === 'copy') {
+        // toRole gains all actions that fromRole has (union)
+        const mergedActions = Array.from(new Set([...toPerm.actions, ...fromPerm.actions]));
+        await prisma.permission.update({
+          where: { id: toPerm.id },
+          data: {
+            actions: mergedActions,
+          },
+        });
+      } else if (actionType === 'move') {
+        // toRole gets fromRole's actions, fromRole gets reset
+        await prisma.permission.update({
+          where: { id: toPerm.id },
+          data: {
+            actions: fromPerm.actions,
+          },
+        });
+        await prisma.permission.update({
+          where: { id: fromPerm.id },
+          data: {
+            actions: [],
+          },
+        });
+      }
+
+      // Sync menu roles based on the updated canView permissions for all roles
+      const allPerms = await prisma.permission.findMany({
+        where: { menuId: menu.id },
+      });
+      const updatedRoles = allPerms
+        .filter((p) => p.actions.includes('canView'))
+        .map((p) => p.role);
+
+      await prisma.menu.update({
+        where: { id: menu.id },
+        data: { roles: updatedRoles },
+      });
     }
+
+    await logActivity(
+      req,
+      'UPDATE',
+      'PERMISSION',
+      `Transferred permissions from ${fromRole} to ${toRole} (Action: ${actionType})`,
+      { fromRole, toRole, action: actionType },
+      null
+    );
 
     res.json({
       success: true,
