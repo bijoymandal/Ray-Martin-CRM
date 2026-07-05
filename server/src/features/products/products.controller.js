@@ -1,4 +1,5 @@
 const prisma = require('../../lib/prisma');
+const { logActivity } = require('../../lib/activity-logger');
 
 // Get all products
 exports.getAll = async (req, res, next) => {
@@ -93,6 +94,15 @@ exports.create = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'CREATE',
+      'PRODUCT',
+      `Created product: ${product.name} ($${product.price})`,
+      null,
+      product
+    );
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -175,6 +185,15 @@ exports.update = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'UPDATE',
+      'PRODUCT',
+      `Updated product: ${updatedProduct.name}`,
+      product,
+      updatedProduct
+    );
+
     res.json({
       success: true,
       message: 'Product updated successfully',
@@ -201,6 +220,15 @@ exports.delete = async (req, res, next) => {
     await prisma.product.delete({
       where: { id },
     });
+
+    await logActivity(
+      req,
+      'DELETE',
+      'PRODUCT',
+      `Deleted product: ${product.name}`,
+      product,
+      null
+    );
 
     res.json({
       success: true,
