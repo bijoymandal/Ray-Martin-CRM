@@ -122,3 +122,26 @@ exports.getMe = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.verifyPassword = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      res.status(400);
+      throw new Error('Password is required');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (user && (await bcrypt.compare(password, user.password))) {
+      res.json({ success: true, message: 'Password verified successfully' });
+    } else {
+      res.status(401);
+      throw new Error('Incorrect password');
+    }
+  } catch (error) {
+    next(error);
+  }
+};

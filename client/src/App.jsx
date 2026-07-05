@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { LockScreen } from './components/LockScreen';
 
 // Import Pages
 import Dashboard from './pages/Dashboard';
@@ -37,56 +38,58 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 const App = () => {
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+    <LockScreen>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-      {/* Protected CRM Routes */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/contacts"
-        element={
-          <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
-            <Contacts />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/deals"
-        element={
-          <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN']}>
-            <Deals />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
-            <Admin />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/academy"
-        element={
-          <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
-            <Academy />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected CRM Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
+              <Contacts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/deals"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN']}>
+              <Deals />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/academy"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
+              <Academy />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Fallback Route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </LockScreen>
   );
 };
 

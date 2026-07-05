@@ -54,6 +54,11 @@ export const getMeAPI = async () => {
   return response.data;
 };
 
+export const verifyPasswordAPI = async (password) => {
+  const response = await api.post('/auth/verify-password', { password });
+  return response.data;
+};
+
 // Contacts Services
 export const getContactsAPI = async () => {
   const response = await api.get('/contacts');
