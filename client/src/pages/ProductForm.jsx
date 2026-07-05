@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getBoardsAPI, getClassesAPI, getSubjectsAPI, getCategoriesAPI, getProductsAPI, createProductAPI, updateProductAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { Upload, X, ArrowLeft, Image, Percent, Tag, DollarSign, Check } from 'lucide-react';
+import { Upload, X, ArrowLeft, Image, Percent, Tag, IndianRupee, Check, Eye } from 'lucide-react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const ProductForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,6 +43,7 @@ const ProductForm = () => {
   const [logoPreview, setLogoPreview] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [galleryPreviews, setGalleryPreviews] = useState([]);
+  const [activeLightBox, setActiveLightBox] = useState(null);
 
   // Calculate discounted price auto-rounded
   const getCalculatedPrice = () => {
@@ -116,9 +121,22 @@ const ProductForm = () => {
     }
   };
 
+  const { permissions } = useAuth();
+  const productPermission = permissions.find(p => p.menu.path === '/products');
+
   useEffect(() => {
+    if (user && user.role !== 'SUPERADMIN') {
+      const hasPerm = id 
+        ? productPermission?.canEdit 
+        : productPermission?.canCreate;
+      
+      if (!hasPerm) {
+        navigate('/products');
+        return;
+      }
+    }
     loadMetadataAndProduct();
-  }, [id]);
+  }, [id, user, productPermission]);
 
   // Cascading lists logic
   const filteredClasses = classes.filter((c) => c.boardId === selectedBoardId);
@@ -283,7 +301,7 @@ const ProductForm = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar />
 
-        <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto max-w-4xl w-full mx-auto">
+        <div className="flex-1 p-6 md:p-8 space-y-2 overflow-y-auto max-w-9xl w-full mx-auto">
           {/* Header Action Back Link */}
           <div className="flex items-center gap-3">
             <button
@@ -321,265 +339,340 @@ const ProductForm = () => {
               Loading workspace configurations...
             </div>
           ) : (
-            <div className="glass-card p-8 border-slate-200/60 dark:border-white/5">
+            <div className="glass-card p-6 md:p-8 border-slate-200/60 dark:border-white/5">
               <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-                
-                {/* Category path selector dropdowns */}
-                <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-white/2 rounded-xl border border-slate-200/60 dark:border-white/5">
-                  <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest mb-1">Category Hierarchy Path Selector</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Board</label>
-                      <select
-                        value={selectedBoardId}
-                        onChange={(e) => handleBoardChange(e.target.value)}
-                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                      >
-                        <option value="">-- Choose Board --</option>
-                        {boards.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Class</label>
-                      <select
-                        value={selectedClassId}
-                        disabled={!selectedBoardId}
-                        onChange={(e) => handleClassChange(e.target.value)}
-                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                      >
-                        <option value="">-- Choose Class --</option>
-                        {filteredClasses.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Subject</label>
-                      <select
-                        value={selectedSubjectId}
-                        disabled={!selectedClassId}
-                        onChange={(e) => handleSubjectChange(e.target.value)}
-                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                      >
-                        <option value="">-- Choose Subject --</option>
-                        {filteredSubjects.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Category *</label>
-                      <select
-                        value={selectedCategoryId}
-                        disabled={!selectedSubjectId}
-                        onChange={(e) => setSelectedCategoryId(e.target.value)}
-                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50 font-bold text-indigo-600 dark:text-indigo-400"
-                      >
-                        <option value="">-- Choose Category --</option>
-                        {filteredCategories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product details */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Product Name *</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. CBSE Practical Physics Manual"
-                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Description</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Short descriptions of parameters..."
-                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 h-20 resize-none focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Price & calculation details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-white/2 rounded-xl border border-slate-200/60 dark:border-white/5">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
-                      <DollarSign size={10} /> Base Price ($) *
-                    </label>
-                    <input
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="180"
-                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
-                      <Percent size={10} /> Discount (%)
-                    </label>
-                    <input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                      placeholder="10"
-                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 flex items-center justify-between border-t border-slate-200 dark:border-white/5 pt-3 mt-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Calculated Discount Price (Auto-Rounded):</span>
-                    <span className="text-sm font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-xl">
-                      ${getCalculatedPrice()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Coupons & Flags */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
-                      <Tag size={10} /> Coupon Code
-                    </label>
-                    <input
-                      type="text"
-                      value={coupon}
-                      onChange={(e) => setCoupon(e.target.value)}
-                      placeholder="e.g. CBSE10"
-                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-5">
-                    <input
-                      type="checkbox"
-                      id="offer"
-                      checked={offer}
-                      onChange={(e) => setOffer(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:border-white/10 dark:bg-dark-deep cursor-pointer"
-                    />
-                    <label htmlFor="offer" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">
-                      Active Offer
-                    </label>
-                  </div>
-                </div>
-
-                {/* Image upload */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Product Logo (Main Image)</label>
-                  <div className="flex flex-col gap-2.5">
-                    {logoPreview && (
-                      <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center justify-center">
-                        <img src={logoPreview} alt="Preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={handleRemoveLogo}
-                          className="absolute top-1.5 right-1.5 p-1 bg-black/60 rounded-full hover:bg-black text-white transition-all cursor-pointer"
-                        >
-                          <X size={10} />
-                        </button>
-                      </div>
-                    )}
-
-                    <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl px-4 py-3 text-xs font-semibold text-slate-500 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all cursor-pointer text-center">
-                      <Upload size={14} />
-                      <span>{logoFile ? logoFile.name : 'Select File'}</span>
-                      <input
-                        type="file"
-                        accept="image/jpeg, image/png, image/gif"
-                        onChange={handleLogoChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Gallery uploads */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Multiple Image Gallery (Max 10)</label>
-                  <div className="space-y-3">
-                    {galleryPreviews.length > 0 && (
-                      <div className="grid grid-cols-5 gap-3 border border-slate-200/60 dark:border-white/5 p-3 rounded-xl bg-slate-50/50 dark:bg-white/2">
-                        {galleryPreviews.map((item, idx) => (
-                          <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200/60 dark:border-white/10 bg-white dark:bg-dark-deep flex items-center justify-center">
-                            <img src={item.url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveGalleryItem(idx)}
-                              className="absolute top-1 right-1 p-1 bg-black/60 rounded-full hover:bg-black text-white transition-all cursor-pointer"
-                            >
-                              <X size={8} />
-                            </button>
+                  {/* Left Column - Product Image & Gallery with visual view triggers */}
+                  <div className="lg:col-span-4 space-y-6">
+                    {/* 1. Product Logo (Main Image) with View */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 bg-slate-50/20 dark:bg-white/1">
+                      <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest mb-3">Product Logo</h3>
+                      <div className="space-y-4">
+                        {logoPreview ? (
+                          <div className="relative group w-full aspect-square rounded-2xl overflow-hidden border border-slate-200/60 dark:border-white/10 bg-slate-50 dark:bg-dark-deep flex items-center justify-center shadow-inner">
+                            <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                            {/* Magnify/View overlay */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-opacity duration-200">
+                              <button
+                                type="button"
+                                onClick={() => setActiveLightBox(logoPreview)}
+                                className="p-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md rounded-full text-white transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
+                                title="View Image"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleRemoveLogo}
+                                className="p-2.5 bg-rose-500/80 hover:bg-rose-500 rounded-full text-white transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
+                                title="Remove Image"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
                           </div>
-                        ))}
+                        ) : (
+                          <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-2xl aspect-square text-xs font-semibold text-slate-400 hover:text-indigo-500 hover:border-indigo-500/40 transition-all cursor-pointer bg-slate-50/40 dark:bg-white/1">
+                            <Upload size={24} className="text-slate-400" />
+                            <span>Upload Main Logo</span>
+                            <span className="text-[9px] text-slate-500">Max 2MB (JPG, PNG, GIF)</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg, image/png, image/gif"
+                              onChange={handleLogoChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
                       </div>
-                    )}
+                    </div>
 
-                    <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl px-4 py-3 text-xs font-semibold text-slate-500 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all cursor-pointer text-center">
-                      <Upload size={14} />
-                      <span>Add Gallery Images</span>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg, image/png, image/gif"
-                        onChange={handleGalleryChange}
-                        className="hidden"
-                      />
-                    </label>
+                    {/* Divider line */}
+                    <div className="border-t border-slate-200 dark:border-white/5 my-6" />
+
+                    {/* 2. Product Gallery with View */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 bg-slate-50/20 dark:bg-white/1">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Image Gallery</h3>
+                        <span className="text-[9px] text-slate-500 font-bold">{galleryPreviews.length} / 10</span>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {galleryPreviews.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 p-2 border border-slate-200/60 dark:border-white/5 rounded-xl bg-slate-50/50 dark:bg-dark-deep shadow-inner">
+                            {galleryPreviews.map((item, idx) => (
+                              <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200/60 dark:border-white/10 bg-white dark:bg-white/2 flex items-center justify-center">
+                                <img src={item.url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity duration-150">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveLightBox(item.url)}
+                                    className="p-1 bg-white/20 hover:bg-white/40 rounded-full text-white cursor-pointer"
+                                    title="View Image"
+                                  >
+                                    <Eye size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveGalleryItem(idx)}
+                                    className="p-1 bg-rose-500/80 hover:bg-rose-500 rounded-full text-white cursor-pointer"
+                                    title="Remove"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl py-3 text-xs font-semibold text-slate-500 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all cursor-pointer text-center bg-slate-50/40 dark:bg-white/1">
+                          <Upload size={14} />
+                          <span>Add Gallery Images</span>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/jpeg, image/png, image/gif"
+                            onChange={handleGalleryChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Product details, dropdowns, available features */}
+                  <div className="lg:col-span-8 space-y-6">
+                    
+                    {/* 1. Product Name */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Product Name *</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="e.g. CBSE Practical Physics Manual"
+                          className="w-full bg-white dark:bg-dark-input border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+
+                      {/* 2. Product Description with CKEditor */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Product Description (Rich Editor)</label>
+                        <div className="ckeditor-wrapper">
+                          <CKEditor
+                            editor={ClassicEditor}
+                            data={description}
+                            onChange={(event, editor) => {
+                              const data = editor.getData();
+                              setDescription(data);
+                            }}
+                            config={{
+                              placeholder: 'Write key specifications, description parameters, or package features here...',
+                              toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', 'undo', 'redo']
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Dropdown lists grouped together */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-3 bg-slate-50/30 dark:bg-white/1">
+                      <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest mb-1.5">Educational Taxonomy Paths</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Board</label>
+                          <select
+                            value={selectedBoardId}
+                            onChange={(e) => handleBoardChange(e.target.value)}
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                          >
+                            <option value="">-- Choose Board --</option>
+                            {boards.map((b) => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Class</label>
+                          <select
+                            value={selectedClassId}
+                            disabled={!selectedBoardId}
+                            onChange={(e) => handleClassChange(e.target.value)}
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                          >
+                            <option value="">-- Choose Class --</option>
+                            {filteredClasses.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Subject</label>
+                          <select
+                            value={selectedSubjectId}
+                            disabled={!selectedClassId}
+                            onChange={(e) => handleSubjectChange(e.target.value)}
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                          >
+                            <option value="">-- Choose Subject --</option>
+                            {filteredSubjects.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Category *</label>
+                          <select
+                            value={selectedCategoryId}
+                            disabled={!selectedSubjectId}
+                            onChange={(e) => setSelectedCategoryId(e.target.value)}
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50 font-bold text-indigo-600 dark:text-indigo-400"
+                          >
+                            <option value="">-- Choose Category --</option>
+                            {filteredCategories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Available options & pricing grid */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-4 bg-slate-50/20 dark:bg-white/1">
+                      <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Pricing & Coupon Offer Configuration</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                            <IndianRupee size={10} /> Base Price (RS.) *
+                          </label>
+                          <input
+                            type="number"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            placeholder="180"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                            <Percent size={10} /> Discount (%)
+                          </label>
+                          <input
+                            type="number"
+                            value={discount}
+                            onChange={(e) => setDiscount(e.target.value)}
+                            placeholder="10"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                            Calculated Price
+                          </label>
+                          <div className="w-full bg-slate-100 dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 font-bold text-emerald-500 flex items-center justify-center">
+                            RS. {parseFloat(getCalculatedPrice() || 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-white/5 pt-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                            <Tag size={10} /> Coupon Code
+                          </label>
+                          <input
+                            type="text"
+                            value={coupon}
+                            onChange={(e) => setCoupon(e.target.value)}
+                            placeholder="e.g. CBSE10"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-indigo-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-5">
+                          <input
+                            type="checkbox"
+                            id="offer"
+                            checked={offer}
+                            onChange={(e) => setOffer(e.target.checked)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:border-white/10 dark:bg-dark-deep cursor-pointer"
+                          />
+                          <label htmlFor="offer" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">
+                            Active Offer
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-5">
+                          <input
+                            type="checkbox"
+                            id="status"
+                            checked={status}
+                            onChange={(e) => setStatus(e.target.checked)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:border-white/10 dark:bg-dark-deep cursor-pointer"
+                          />
+                          <label htmlFor="status" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">
+                            Active Status
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Actions buttons inside Right Column */}
+                    <div className="flex gap-4 pt-4 border-t border-slate-200/60 dark:border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/products')}
+                        className="flex-1 py-3.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 dark:border-white/5 dark:text-slate-300 dark:hover:bg-white/5 transition-all cursor-pointer text-center"
+                      >
+                        Cancel Workspace
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-3.5 font-bold text-[10px] uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all cursor-pointer text-center"
+                      >
+                        {id ? 'Save Changes' : 'Create Product'}
+                      </button>
+                    </div>
+
                   </div>
                 </div>
-
-                {/* Status flag */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="status"
-                    checked={status}
-                    onChange={(e) => setStatus(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:border-white/10 dark:bg-dark-deep cursor-pointer"
-                  />
-                  <label htmlFor="status" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">
-                    Active Status
-                  </label>
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex gap-4 pt-4 border-t border-slate-200/60 dark:border-white/5">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/products')}
-                    className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 dark:border-white/5 dark:text-slate-300 dark:hover:bg-white/5 transition-all cursor-pointer text-center"
-                  >
-                    Cancel Workspace
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-3 font-bold text-[10px] uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all cursor-pointer text-center"
-                  >
-                    {id ? 'Save Changes' : 'Create Product'}
-                  </button>
-                </div>
-
               </form>
             </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox full-screen image viewer modal */}
+      {activeLightBox && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in p-6"
+          onClick={() => setActiveLightBox(null)}
+        >
+          <button
+            type="button"
+            className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white cursor-pointer transition-all"
+            onClick={() => setActiveLightBox(null)}
+          >
+            <X size={20} />
+          </button>
+          <div 
+            className="max-w-[90vw] max-h-[85vh] rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-2xl flex items-center justify-center animate-slide-up"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking on the image
+          >
+            <img src={activeLightBox} alt="Preview Zoomed" className="max-w-full max-h-[80vh] object-contain" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

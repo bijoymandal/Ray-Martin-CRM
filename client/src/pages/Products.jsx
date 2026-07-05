@@ -1,17 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getProductsAPI, updateProductAPI, deleteProductAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { ShoppingBag, X, Trash2, Edit2, HelpCircle, Check, Image, Percent, Tag, DollarSign, Plus } from 'lucide-react';
+import { ShoppingBag, Trash2, Edit2, HelpCircle, Check, Image, Percent, Plus } from 'lucide-react';
 
 const Products = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Find products menu permission configuration dynamically from DB rules
+  const { permissions } = useAuth();
+  const productPermission = permissions.find(p => p.menu.path === '/products');
+
+  const canCreate = user?.role === 'SUPERADMIN' || (productPermission?.canCreate ?? false);
+  const canEdit = user?.role === 'SUPERADMIN' || (productPermission?.canEdit ?? false);
+  const canDelete = user?.role === 'SUPERADMIN' || (productPermission?.canDelete ?? false);
+  const canToggleStatus = user?.role === 'SUPERADMIN' || (productPermission?.canEdit ?? false);
 
   // Custom Confirmation Modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -40,6 +51,8 @@ const Products = () => {
   }, []);
 
   const handleToggleStatus = (prod) => {
+    if (!canToggleStatus) return;
+
     const nextStatus = !prod.status;
     const targetStatusText = nextStatus ? 'Active' : 'Inactive';
 
@@ -68,6 +81,8 @@ const Products = () => {
   };
 
   const handleDeleteProduct = (prod) => {
+    if (!canDelete) return;
+
     setConfirmModal({
       isOpen: true,
       title: 'Delete Product?',
@@ -121,13 +136,15 @@ const Products = () => {
               </p>
             </div>
             
-            <button
-              onClick={() => navigate('/products/form')}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <Plus size={14} />
-              <span>Create Product</span>
-            </button>
+            {canCreate && (
+              <button
+                onClick={() => navigate('/products/form')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Create Product</span>
+              </button>
+            )}
           </div>
 
           {/* Feedback alerts */}
@@ -169,7 +186,7 @@ const Products = () => {
                       <th className="p-4 text-center">Discount</th>
                       <th className="p-4 text-center">Final Price</th>
                       <th className="p-4 text-center">Status</th>
-                      <th className="p-4 text-right pr-0">Actions</th>
+                      {(canEdit || canDelete) && <th className="p-4 text-right pr-0">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -202,7 +219,7 @@ const Products = () => {
                           )}
                         </td>
                         <td className="p-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                          ${prod.price}
+                          RS. {parseFloat(prod.price || 0).toFixed(2)}
                         </td>
                         <td className="p-4 text-center">
                           {prod.discount > 0 ? (
@@ -215,39 +232,58 @@ const Products = () => {
                           )}
                         </td>
                         <td className="p-4 text-center font-bold text-emerald-500">
-                          ${prod.discountedPrice}
+                          RS. {parseFloat(prod.discountedPrice || 0).toFixed(2)}
                         </td>
                         <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleToggleStatus(prod)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer border ${
-                              prod.status
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
-                            }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${prod.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                            <span>{prod.status ? 'Active' : 'Inactive'}</span>
-                          </button>
-                        </td>
-                        <td className="p-4 text-right pr-0">
-                          <div className="inline-flex gap-2">
+                          {canToggleStatus ? (
                             <button
-                              onClick={() => navigate(`/products/form/${prod.id}`)}
-                              className="p-2 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                              title="Edit Product"
+                              onClick={() => handleToggleStatus(prod)}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer border ${
+                                prod.status
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
+                              }`}
                             >
-                              <Edit2 size={13} />
+                              <span className={`w-1.5 h-1.5 rounded-full ${prod.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                              <span>{prod.status ? 'Active' : 'Inactive'}</span>
                             </button>
-                            <button
-                              onClick={() => handleDeleteProduct(prod)}
-                              className="p-2 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                              title="Delete Product"
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                prod.status
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/10'
+                                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/10'
+                              }`}
                             >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
+                              <span className={`w-1.5 h-1.5 rounded-full ${prod.status ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                              <span>{prod.status ? 'Active' : 'Inactive'}</span>
+                            </span>
+                          )}
                         </td>
+                        {(canEdit || canDelete) && (
+                          <td className="p-4 text-right pr-0">
+                            <div className="inline-flex gap-2">
+                              {canEdit && (
+                                <button
+                                  onClick={() => navigate(`/products/form/${prod.id}`)}
+                                  className="p-2 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Edit Product"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleDeleteProduct(prod)}
+                                  className="p-2 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Delete Product"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

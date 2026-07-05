@@ -79,3 +79,68 @@ html, body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* CKEditor Styles Override */
+.ck-editor__editable {
+  min-height: 180px !important;
+}
+
+.dark {
+  --ck-color-base-background: #0d0d19;
+  --ck-color-base-border: rgba(255, 255, 255, 0.05);
+  --ck-color-toolbar-background: rgba(22, 22, 38, 0.9);
+  --ck-color-toolbar-border: rgba(255, 255, 255, 0.05);
+  --ck-color-text: #e2e8f0;
+  --ck-color-button-default-hover-background: rgba(255, 255, 255, 0.1);
+  --ck-color-button-on-background: rgba(255, 255, 255, 0.15);
+  --ck-color-button-on-hover-background: rgba(255, 255, 255, 0.2);
+  --ck-color-input-background: #0d0d19;
+  --ck-color-input-border: rgba(255, 255, 255, 0.1);
+  --ck-color-input-text: #e2e8f0;
+  --ck-color-dropdown-panel-background: #0e0e18;
+  --ck-color-dropdown-panel-border: rgba(255, 255, 255, 0.1);
+  --ck-color-panel-background: #0e0e18;
+  --ck-color-panel-border: rgba(255, 255, 255, 0.1);
+}
+
+.ck.ck-editor__main>.ck-editor__editable {
+  background: white !important;
+  color: #1e293b !important;
+  border-bottom-left-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+  border-color: #cbd5e1 !important;
+}
+
+.dark .ck.ck-editor__main>.ck-editor__editable {
+  background: rgba(13, 13, 25, 0.8) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.ck.ck-toolbar {
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 8px !important;
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+}
+
+.dark .ck.ck-toolbar {
+  background: rgba(22, 22, 38, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .ck.ck-button {
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+}
+
+.dark .ck.ck-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.dark .ck.ck-button.ck-on {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+}
+
