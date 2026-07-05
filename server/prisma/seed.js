@@ -67,6 +67,16 @@ async function main() {
     },
   });
 
+  await prisma.menu.create({
+    data: {
+      name: 'Products',
+      path: '/products',
+      iconName: 'ShoppingBag',
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN'],
+      order: 6,
+    },
+  });
+
   console.log('Created default menus.');
 
   const hashedPassword = await bcrypt.hash('admin123', 12);

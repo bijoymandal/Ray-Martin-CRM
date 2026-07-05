@@ -9,6 +9,8 @@ import Contacts from './pages/Contacts';
 import Deals from './pages/Deals';
 import Admin from './pages/Admin';
 import Academy from './pages/Academy';
+import Products from './pages/Products';
+import ProductForm from './pages/ProductForm';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -82,6 +84,30 @@ const App = () => {
           element={
             <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
               <Academy />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+              <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/products/form"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+              <ProductForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/products/form/:id"
+          element={
+            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+              <ProductForm />
             </ProtectedRoute>
           }
         />

@@ -123,6 +123,25 @@ model Category {
   logo      String?
   subjectId String   @db.ObjectId
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  products  Product[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  description     String?
+  price           Float
+  discount        Float    @default(0) // Percentage discount
+  discountedPrice Float    @default(0) // Auto-calculated and rounded-off final price
+  status          Boolean  @default(true)
+  offer           Boolean  @default(false)
+  coupon          String?
+  image           String?  // Main product image logo
+  gallery         String[] // Multiple image gallery paths
+  categoryId      String   @db.ObjectId
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
