@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LogOut, Sun, Moon } from 'lucide-react';
@@ -35,15 +36,15 @@ const Navbar = () => {
 
         {user && (
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-indigo-500/25">
+            <Link to="/profile" className="flex items-center gap-3 group cursor-pointer select-none">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
                 {getInitials(user.name)}
               </div>
-              <div className="hidden sm:flex flex-col">
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{user.name}</span>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">{user.name}</span>
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold dark:text-slate-500">{user.role}</span>
               </div>
-            </div>
+            </Link>
             
             <button
               onClick={logout}

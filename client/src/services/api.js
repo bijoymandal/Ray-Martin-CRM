@@ -122,6 +122,74 @@ export const updateUserRoleAPI = async (id, role) => {
   return response.data;
 };
 
+// Role Management Services
+export const getRolesAPI = async () => {
+  const response = await api.get('/roles');
+  return response.data;
+};
+
+export const createRoleAPI = async (roleData) => {
+  const response = await api.post('/roles', roleData);
+  return response.data;
+};
+
+export const updateRoleAPI = async (id, roleData) => {
+  const response = await api.put(`/roles/${id}`, roleData);
+  return response.data;
+};
+
+export const deleteRoleAPI = async (id) => {
+  const response = await api.delete(`/roles/${id}`);
+  return response.data;
+};
+
+// Permissions control board APIs
+export const getPermissionsAPI = async () => {
+  const response = await api.get('/users/permissions');
+  return response.data;
+};
+
+export const updatePermissionAPI = async (id, data) => {
+  const response = await api.put(`/users/permissions/${id}`, data);
+  return response.data;
+};
+
+export const getMyPermissionsAPI = async () => {
+  const response = await api.get('/menus/my-permissions');
+  return response.data;
+};
+
+export const updateProfileAPI = async (data) => {
+  const response = await api.put('/users/profile', data);
+  return response.data;
+};
+
+export const deleteAccountAPI = async () => {
+  const response = await api.delete('/users/profile');
+  return response.data;
+};
+
+// Dynamic Permission Action Configuration APIs
+export const getPermissionActionsAPI = async () => {
+  const response = await api.get('/permission-actions');
+  return response.data;
+};
+
+export const createPermissionActionAPI = async (actionData) => {
+  const response = await api.post('/permission-actions', actionData);
+  return response.data;
+};
+
+export const updatePermissionActionAPI = async (id, actionData) => {
+  const response = await api.put(`/permission-actions/${id}`, actionData);
+  return response.data;
+};
+
+export const deletePermissionActionAPI = async (id) => {
+  const response = await api.delete(`/permission-actions/${id}`);
+  return response.data;
+};
+
 // Menu Management Services
 export const getVisibleMenusAPI = async () => {
   const response = await api.get('/menus');
@@ -237,6 +305,17 @@ export const updateProductAPI = async (id, data) => {
 };
 export const deleteProductAPI = async (id) => {
   const response = await api.delete(`/products/${id}`);
+  return response.data;
+};
+
+// Activity Logging Services
+export const getActivityLogsAPI = async () => {
+  const response = await api.get('/activity');
+  return response.data;
+};
+
+export const logVisitAPI = async (path, name) => {
+  const response = await api.post('/activity/log-visit', { path, name });
   return response.data;
 };
 

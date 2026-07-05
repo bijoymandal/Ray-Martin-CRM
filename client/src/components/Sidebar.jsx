@@ -5,7 +5,7 @@ import { getVisibleMenusAPI } from '../services/api';
 import * as Icons from 'lucide-react';
 
 const Sidebar = () => {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +25,7 @@ const Sidebar = () => {
     if (user) {
       fetchMenus();
     }
-  }, [user]);
+  }, [user, permissions]);
 
   const renderIcon = (iconName) => {
     const IconComponent = Icons[iconName] || Icons.HelpCircle;

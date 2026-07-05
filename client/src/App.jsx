@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { LockScreen } from './components/LockScreen';
+import { logVisitAPI } from './services/api';
 
 // Import Pages
 import Dashboard from './pages/Dashboard';
@@ -13,10 +14,27 @@ import Products from './pages/Products';
 import ProductForm from './pages/ProductForm';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Profile from './pages/Profile';
 
-// Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+// Protected Route Component (Database-driven Dynamic RBAC)
+const ProtectedRoute = ({ children, menuPath, action }) => {
+  const { isAuthenticated, loading, user, permissions } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      let name = '';
+      if (menuPath) {
+        const perm = permissions.find(p => p.menu.path === menuPath);
+        name = perm?.menu?.name || menuPath;
+      } else {
+        name = 'Profile Settings';
+      }
+      const currentPath = menuPath || '/profile';
+      logVisitAPI(currentPath, name).catch((err) =>
+        console.error('Visit logging failed:', err)
+      );
+    }
+  }, [isAuthenticated, menuPath, permissions]);
 
   if (loading) {
     return (
@@ -31,8 +49,27 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+  // SUPERADMIN always bypasses all checks
+  if (user.role === 'SUPERADMIN') {
+    return children;
+  }
+
+  // Look up permissions inside dynamic state loaded from the DB
+  if (menuPath) {
+    const perm = permissions.find(p => p.menu.path === menuPath);
+    if (!perm) {
+      return <Navigate to="/" replace />;
+    }
+
+    if (action) {
+      if (!perm.actions || !perm.actions.includes(action)) {
+        return <Navigate to="/" replace />;
+      }
+    } else {
+      if (!perm.actions || !perm.actions.includes('canView')) {
+        return <Navigate to="/" replace />;
+      }
+    }
   }
 
   return children;
@@ -46,11 +83,11 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected CRM Routes */}
+        {/* Protected Dashboard/App Routes */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute menuPath="/">
               <Dashboard />
             </ProtectedRoute>
           }
@@ -58,7 +95,7 @@ const App = () => {
         <Route
           path="/contacts"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
+            <ProtectedRoute menuPath="/contacts">
               <Contacts />
             </ProtectedRoute>
           }
@@ -66,7 +103,7 @@ const App = () => {
         <Route
           path="/deals"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN']}>
+            <ProtectedRoute menuPath="/deals">
               <Deals />
             </ProtectedRoute>
           }
@@ -74,7 +111,7 @@ const App = () => {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+            <ProtectedRoute menuPath="/admin">
               <Admin />
             </ProtectedRoute>
           }
@@ -82,7 +119,7 @@ const App = () => {
         <Route
           path="/academy"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR']}>
+            <ProtectedRoute menuPath="/academy">
               <Academy />
             </ProtectedRoute>
           }
@@ -90,7 +127,7 @@ const App = () => {
         <Route
           path="/products"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+            <ProtectedRoute menuPath="/products" action="canView">
               <Products />
             </ProtectedRoute>
           }
@@ -98,7 +135,7 @@ const App = () => {
         <Route
           path="/products/form"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+            <ProtectedRoute menuPath="/products" action="canCreate">
               <ProductForm />
             </ProtectedRoute>
           }
@@ -106,8 +143,17 @@ const App = () => {
         <Route
           path="/products/form/:id"
           element={
-            <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN']}>
+            <ProtectedRoute menuPath="/products" action="canEdit">
               <ProductForm />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />
@@ -124,9 +170,9 @@ const loadingContainerStyle = {
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '100vh',
-  width: '100vw',
-  background: '#080810',
+  minHeight: 'screen',
+  height: '100vh',
+  backgroundColor: '#0a0a0f',
 };
 
 export default App;

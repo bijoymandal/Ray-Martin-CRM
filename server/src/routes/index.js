@@ -8,6 +8,9 @@ const userRoutes = require('../features/users/user.routes');
 const menuRoutes = require('../features/menus/menu.routes');
 const academyRoutes = require('../features/academy/academy.routes');
 const productRoutes = require('../features/products/products.routes');
+const roleRoutes = require('../features/roles/role.routes');
+const permissionActionRoutes = require('../features/permissions/permission-action.routes');
+const activityRoutes = require('../features/activity/activity.routes');
 
 router.use('/auth', authRoutes);
 router.use('/contacts', contactRoutes);
@@ -16,5 +19,8 @@ router.use('/users', userRoutes);
 router.use('/menus', menuRoutes);
 router.use('/academy', academyRoutes);
 router.use('/products', productRoutes);
+router.use('/roles', roleRoutes);
+router.use('/permission-actions', permissionActionRoutes);
+router.use('/activity', activityRoutes);
 
 module.exports = router;
