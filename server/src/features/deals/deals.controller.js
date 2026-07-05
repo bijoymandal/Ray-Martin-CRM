@@ -1,4 +1,5 @@
 const prisma = require('../../lib/prisma');
+const { logActivity } = require('../../lib/activity-logger');
 
 // Get all deals for the authenticated user
 exports.getAll = async (req, res, next) => {
@@ -92,6 +93,15 @@ exports.create = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'CREATE',
+      'DEAL',
+      `Created deal: ${deal.title} ($${deal.value})`,
+      null,
+      deal
+    );
+
     res.status(201).json({
       success: true,
       data: deal,
@@ -147,6 +157,15 @@ exports.update = async (req, res, next) => {
       },
     });
 
+    await logActivity(
+      req,
+      'UPDATE',
+      'DEAL',
+      `Updated deal: ${deal.title} ($${deal.value})`,
+      dealExists,
+      deal
+    );
+
     res.json({
       success: true,
       data: deal,
@@ -175,6 +194,15 @@ exports.delete = async (req, res, next) => {
     await prisma.deal.delete({
       where: { id: req.params.id },
     });
+
+    await logActivity(
+      req,
+      'DELETE',
+      'DEAL',
+      `Deleted deal: ${dealExists.title}`,
+      dealExists,
+      null
+    );
 
     res.json({
       success: true,
