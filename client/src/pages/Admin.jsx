@@ -103,12 +103,25 @@ const Admin = () => {
   const [activityLoading, setActivityLoading] = useState(false);
   const [expandedLog, setExpandedLog] = useState(null);
 
-  const fetchUsers = async () => {
+  // Pagination states for Users
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersTotalPages, setUsersTotalPages] = useState(1);
+  const usersLimit = 10;
+
+  // Pagination states for Activities
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityTotalPages, setActivityTotalPages] = useState(1);
+  const activityLimit = 20;
+
+  const fetchUsers = async (page = 1) => {
+    setUsersLoading(true);
     try {
       setError('');
-      const res = await getUsersAPI();
+      const res = await getUsersAPI(page, usersLimit);
       if (res.success) {
         setUsers(res.data);
+        setUsersPage(res.currentPage || page);
+        setUsersTotalPages(res.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -182,13 +195,15 @@ const Admin = () => {
     }
   };
 
-  const fetchActivityLogs = async () => {
+  const fetchActivityLogs = async (page = 1) => {
     setActivityLoading(true);
     try {
       setError('');
-      const res = await getActivityLogsAPI();
+      const res = await getActivityLogsAPI(page, activityLimit);
       if (res.success) {
         setActivityLogs(res.data);
+        setActivityPage(res.currentPage || page);
+        setActivityTotalPages(res.totalPages || 1);
       }
     } catch (err) {
       console.error(err);
@@ -205,7 +220,7 @@ const Admin = () => {
 
   useEffect(() => {
     if (activeTab === 'users') {
-      fetchUsers();
+      fetchUsers(usersPage);
     } else if (activeTab === 'menus') {
       fetchMenus();
     } else if (activeTab === 'permissions') {
@@ -216,9 +231,9 @@ const Admin = () => {
       fetchRoles();
       fetchPermissionActions();
     } else if (activeTab === 'activity') {
-      fetchActivityLogs();
+      fetchActivityLogs(activityPage);
     }
-  }, [activeTab]);
+  }, [activeTab, usersPage, activityPage]);
 
   // Handle user role changes
   const handleRoleChange = async (userId, newRole) => {
@@ -497,7 +512,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-dark-main text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
 
         <div className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">
@@ -658,7 +673,7 @@ const Admin = () => {
                           <Plus size={16} className="text-indigo-500" />
                           {editingRole ? `Edit Role: ${editingRole.name}` : 'Create Dynamic Role'}
                         </h3>
-                        <form onSubmit={handleRoleSubmit} className="flex flex-col gap-4">
+                        <form onSubmit={handleRoleSubmit} className="flex flex-col gap-4" autoComplete="off">
                           <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Role Name</label>
                             <input
@@ -668,6 +683,7 @@ const Admin = () => {
                               disabled={editingRole && ['SUPERADMIN', 'ADMIN'].includes(editingRole.name)}
                               onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
                               className="glass-input w-full px-3 py-2 text-xs"
+                              autoComplete="off"
                               required
                             />
                           </div>
@@ -781,7 +797,7 @@ const Admin = () => {
                           <Plus size={16} className="text-indigo-500" />
                           {editingAction ? `Edit Action: ${editingAction.label}` : 'Create Dynamic Action'}
                         </h3>
-                        <form onSubmit={handleActionSubmit} className="flex flex-col gap-4">
+                        <form onSubmit={handleActionSubmit} className="flex flex-col gap-4" autoComplete="off">
                           <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Action Name (camelCase starting with "can")</label>
                             <input
@@ -791,6 +807,7 @@ const Admin = () => {
                               disabled={!!editingAction}
                               onChange={(e) => setNewAction({ ...newAction, name: e.target.value })}
                               className="glass-input w-full px-3 py-2 text-xs"
+                              autoComplete="off"
                               required
                             />
                           </div>
@@ -802,6 +819,7 @@ const Admin = () => {
                               value={newAction.label}
                               onChange={(e) => setNewAction({ ...newAction, label: e.target.value })}
                               className="glass-input w-full px-3 py-2 text-xs"
+                              autoComplete="off"
                               required
                             />
                           </div>
@@ -909,6 +927,45 @@ const Admin = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Users Pagination controls */}
+                {usersTotalPages > 1 && (
+                  <div className="flex justify-between items-center p-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>
+                      Showing page <span className="font-semibold text-slate-700 dark:text-slate-300">{usersPage}</span> of{' '}
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{usersTotalPages}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={usersPage === 1}
+                        onClick={() => setUsersPage(usersPage - 1)}
+                        className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: usersTotalPages }, (_, i) => i + 1).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setUsersPage(p)}
+                          className={`px-3 py-1.5 border rounded-lg font-semibold transition-all cursor-pointer ${
+                            usersPage === p
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                              : 'border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        disabled={usersPage === usersTotalPages}
+                        onClick={() => setUsersPage(usersPage + 1)}
+                        className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           ) : activeTab === 'menus' ? (
@@ -974,7 +1031,7 @@ const Admin = () => {
                         <Plus size={18} className="text-indigo-500" />
                         Create Custom Menu
                       </h3>
-                      <form onSubmit={handleCreateMenuSubmit} className="flex flex-col gap-4">
+                      <form onSubmit={handleCreateMenuSubmit} className="flex flex-col gap-4" autoComplete="off">
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Menu Name</label>
                           <input
@@ -983,6 +1040,7 @@ const Admin = () => {
                             onChange={(e) => setNewMenu({ ...newMenu, name: e.target.value })}
                             placeholder="e.g. Sales Pipeline"
                             className="glass-input w-full px-4 py-2.5 text-sm"
+                            autoComplete="off"
                             required
                           />
                         </div>
@@ -994,6 +1052,7 @@ const Admin = () => {
                             onChange={(e) => setNewMenu({ ...newMenu, path: e.target.value })}
                             placeholder="e.g. /deals"
                             className="glass-input w-full px-4 py-2.5 text-sm font-mono"
+                            autoComplete="off"
                             required
                           />
                         </div>
@@ -1022,6 +1081,7 @@ const Admin = () => {
                               onChange={(e) => setNewMenu({ ...newMenu, order: e.target.value })}
                               placeholder="e.g. 5"
                               className="glass-input w-full px-4 py-2 text-sm"
+                              autoComplete="off"
                             />
                           </div>
                         </div>
@@ -1129,7 +1189,7 @@ const Admin = () => {
                         <RefreshCw size={16} className="text-purple-500" />
                         Transfer Menu Permissions
                       </h3>
-                      <form onSubmit={handleTransferSubmit} className="flex flex-col gap-4">
+                      <form onSubmit={handleTransferSubmit} className="flex flex-col gap-4" autoComplete="off">
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">From Source Role</label>
                           <select
@@ -1291,7 +1351,8 @@ const Admin = () => {
                   No activity logs registered yet.
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <>
+                  <div className="flex flex-col gap-3">
                   {activityLogs.map((log) => {
                     const badgeClass = ((action) => {
                       switch (action) {
@@ -1381,9 +1442,48 @@ const Admin = () => {
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
+                {/* Activity logs pagination controls */}
+                {activityTotalPages > 1 && (
+                  <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>
+                      Showing page <span className="font-semibold text-slate-700 dark:text-slate-300">{activityPage}</span> of{' '}
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{activityTotalPages}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        disabled={activityPage === 1}
+                        onClick={() => setActivityPage(activityPage - 1)}
+                        className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: activityTotalPages }, (_, i) => i + 1).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setActivityPage(p)}
+                          className={`px-3 py-1.5 border rounded-lg font-semibold transition-all cursor-pointer ${
+                            activityPage === p
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                              : 'border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        disabled={activityPage === activityTotalPages}
+                        onClick={() => setActivityPage(activityPage + 1)}
+                        className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
           </div>
       </div>
     </div>

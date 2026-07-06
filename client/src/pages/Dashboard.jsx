@@ -106,7 +106,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-dark-main text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
         
         <div className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">

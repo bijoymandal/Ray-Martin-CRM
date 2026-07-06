@@ -1,9 +1,15 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
-// Get all users in the system (Admin only)
+// Get all users in the system (Admin only) (Paginated)
 exports.getAllUsers = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await prisma.user.count();
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -13,11 +19,16 @@ exports.getAllUsers = async (req, res, next) => {
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
 
     res.json({
       success: true,
       count: users.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: users,
     });
   } catch (error) {

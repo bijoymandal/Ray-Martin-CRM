@@ -27,17 +27,24 @@ const Deals = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteDealId, setDeleteDealId] = useState(null);
 
-  const fetchData = async () => {
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(10);
+
+  const fetchData = async (page = 1) => {
     try {
       setError('');
       const [dealsRes, contactsRes] = await Promise.all([
-        getDealsAPI(),
-        getContactsAPI(),
+        getDealsAPI(page, limit),
+        getContactsAPI(1, 1000), // Large limit to load dropdown selection
       ]);
 
       if (dealsRes.success && contactsRes.success) {
         setDeals(dealsRes.data);
         setContacts(contactsRes.data);
+        setCurrentPage(dealsRes.currentPage || page);
+        setTotalPages(dealsRes.totalPages || 1);
       } else {
         setError('Failed to fetch pipeline information.');
       }
@@ -50,8 +57,8 @@ const Deals = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(currentPage);
+  }, [currentPage]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -160,7 +167,7 @@ const Deals = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-dark-main text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
 
         <div className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">
@@ -277,6 +284,45 @@ const Deals = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                  <div>
+                    Showing page <span className="font-semibold text-slate-700 dark:text-slate-300">{currentPage}</span> of{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{totalPages}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`px-3 py-1.5 border rounded-lg font-semibold transition-all cursor-pointer ${
+                          currentPage === p
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                            : 'border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -295,7 +341,7 @@ const Deals = () => {
                     <X size={18} />
                   </button>
                 </div>
-                <form onSubmit={handleSaveDeal} className="flex flex-col gap-4">
+                <form onSubmit={handleSaveDeal} className="flex flex-col gap-4" autoComplete="off">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Deal Title *</label>
                     <input
@@ -305,6 +351,7 @@ const Deals = () => {
                       onChange={handleInputChange}
                       placeholder="e.g. Enterprise License Contract"
                       className="glass-input"
+                      autoComplete="off"
                       required
                     />
                   </div>
@@ -321,6 +368,7 @@ const Deals = () => {
                           onChange={handleInputChange}
                           placeholder="e.g. 50000"
                           className="glass-input pl-9"
+                          autoComplete="off"
                           required
                         />
                       </div>

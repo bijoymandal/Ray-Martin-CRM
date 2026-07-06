@@ -1,9 +1,17 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
-// Get all contacts for the authenticated user
+// Get all contacts for the authenticated user (Paginated)
 exports.getAll = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await prisma.contact.count({
+      where: { userId: req.user.id },
+    });
+
     const contacts = await prisma.contact.findMany({
       where: { userId: req.user.id },
       include: {
@@ -12,11 +20,16 @@ exports.getAll = async (req, res, next) => {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
 
     res.json({
       success: true,
       count: contacts.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: contacts,
     });
   } catch (error) {

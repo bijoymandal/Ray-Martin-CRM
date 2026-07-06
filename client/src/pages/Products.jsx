@@ -33,11 +33,20 @@ const Products = () => {
     onConfirm: null,
   });
 
-  const fetchProducts = async () => {
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(10);
+
+  const fetchProducts = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await getProductsAPI();
-      if (res.success) setProducts(res.data);
+      const res = await getProductsAPI(null, page, limit);
+      if (res.success) {
+        setProducts(res.data);
+        setCurrentPage(res.currentPage || page);
+        setTotalPages(res.totalPages || 1);
+      }
     } catch (err) {
       console.error(err);
       setError('Error loading products list');
@@ -47,8 +56,8 @@ const Products = () => {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts(currentPage);
+  }, [currentPage]);
 
   const handleToggleStatus = (prod) => {
     if (!canToggleStatus) return;
@@ -104,6 +113,14 @@ const Products = () => {
     });
   };
 
+  const isNewProduct = (createdAtString) => {
+    if (!createdAtString) return false;
+    const createdAt = new Date(createdAtString);
+    const now = new Date();
+    const diffInHours = (now - createdAt) / (1000 * 60 * 60);
+    return diffInHours <= 24;
+  };
+
   const renderProductLogo = (logoPath) => {
     if (!logoPath) {
       return (
@@ -120,7 +137,7 @@ const Products = () => {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 md:pl-[260px] pt-[70px]">
         <Navbar />
         
         <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto">
@@ -176,7 +193,8 @@ const Products = () => {
                 <p className="text-xs font-semibold text-slate-400">No products registered yet. Click "Create Product" to start.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+                <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200/60 dark:border-white/5 text-slate-400 uppercase tracking-wider font-bold">
@@ -196,7 +214,18 @@ const Products = () => {
                           <div className="flex items-center gap-3">
                             {renderProductLogo(prod.image)}
                             <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">{prod.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-700 dark:text-slate-200">{prod.name}</span>
+                                {isNewProduct(prod.createdAt) && (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                    </span>
+                                    New
+                                  </span>
+                                )}
+                              </div>
                               {prod.coupon && (
                                 <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/10 px-1.5 py-0.5 rounded mt-0.5 w-max font-bold">
                                   Coupon: {prod.coupon}
@@ -289,8 +318,48 @@ const Products = () => {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                  <div>
+                    Showing page <span className="font-semibold text-slate-700 dark:text-slate-300">{currentPage}</span> of{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{totalPages}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`px-3 py-1.5 border rounded-lg font-semibold transition-all cursor-pointer ${
+                          currentPage === p
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                            : 'border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
         </div>
       </div>
 

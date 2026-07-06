@@ -70,7 +70,7 @@ const Register = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5" autoComplete="off">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider dark:text-slate-500">Full Name</label>
             <div className="relative flex items-center">
@@ -81,6 +81,7 @@ const Register = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="glass-input pl-11"
+                autoComplete="name"
                 required
               />
             </div>
@@ -96,6 +97,7 @@ const Register = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="glass-input pl-11"
+                autoComplete="email"
                 required
               />
             </div>
@@ -111,6 +113,7 @@ const Register = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="glass-input pl-11"
+                autoComplete="new-password"
                 required
               />
             </div>

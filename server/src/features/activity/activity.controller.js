@@ -1,16 +1,27 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
-// Get all activity logs (Superadmin only)
+// Get all activity logs (Superadmin only) (Paginated)
 exports.getAllActivityLogs = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    const total = await prisma.activityLog.count();
+
     const logs = await prisma.activityLog.findMany({
       orderBy: { timestamp: 'desc' },
-      take: 200, // retrieve latest 200 activity logs
+      skip,
+      take: limit,
     });
 
     res.json({
       success: true,
+      count: logs.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: logs,
     });
   } catch (error) {

@@ -1,11 +1,19 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
-// Get all products
+// Get all products (Paginated)
 exports.getAll = async (req, res, next) => {
   try {
     const { categoryId } = req.query;
     const filter = categoryId ? { categoryId } : {};
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await prisma.product.count({
+      where: filter,
+    });
 
     const products = await prisma.product.findMany({
       where: filter,
@@ -23,11 +31,16 @@ exports.getAll = async (req, res, next) => {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
 
     res.json({
       success: true,
       count: products.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: products,
     });
   } catch (error) {

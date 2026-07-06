@@ -29,13 +29,20 @@ const Contacts = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteContactId, setDeleteContactId] = useState(null);
 
-  const fetchContacts = async () => {
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(10);
+
+  const fetchContacts = async (page = 1) => {
     try {
       setError('');
-      const res = await getContactsAPI();
+      const res = await getContactsAPI(page, limit);
       if (res.success) {
         setContacts(res.data);
         setFilteredContacts(res.data);
+        setCurrentPage(res.currentPage || page);
+        setTotalPages(res.totalPages || 1);
       } else {
         setError('Failed to load contacts');
       }
@@ -48,8 +55,8 @@ const Contacts = () => {
   };
 
   useEffect(() => {
-    fetchContacts();
-  }, []);
+    fetchContacts(currentPage);
+  }, [currentPage]);
 
   // Handle Search and Filter
   useEffect(() => {
@@ -168,7 +175,7 @@ const Contacts = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-dark-main text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
 
         <div className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">
@@ -204,6 +211,7 @@ const Contacts = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="glass-input pl-11"
+                autoComplete="off"
               />
             </div>
             <div className="flex items-center gap-3">
@@ -285,6 +293,45 @@ const Contacts = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                  <div>
+                    Showing page <span className="font-semibold text-slate-700 dark:text-slate-300">{currentPage}</span> of{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{totalPages}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`px-3 py-1.5 border rounded-lg font-semibold transition-all cursor-pointer ${
+                          currentPage === p
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                            : 'border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      className="px-3 py-1.5 border border-slate-200 dark:border-white/5 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -303,7 +350,7 @@ const Contacts = () => {
                     <X size={18} />
                   </button>
                 </div>
-                <form onSubmit={handleSaveContact} className="flex flex-col gap-4">
+                <form onSubmit={handleSaveContact} className="flex flex-col gap-4" autoComplete="off">
                   <div className="flex gap-4">
                     <div className="flex-1 flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">First Name *</label>
@@ -313,6 +360,7 @@ const Contacts = () => {
                         value={formData.firstName}
                         onChange={handleInputChange}
                         className="glass-input"
+                        autoComplete="off"
                         required
                       />
                     </div>
@@ -324,6 +372,7 @@ const Contacts = () => {
                         value={formData.lastName}
                         onChange={handleInputChange}
                         className="glass-input"
+                        autoComplete="off"
                         required
                       />
                     </div>
@@ -337,6 +386,7 @@ const Contacts = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       className="glass-input"
+                      autoComplete="off"
                       required
                     />
                   </div>
@@ -350,6 +400,7 @@ const Contacts = () => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         className="glass-input"
+                        autoComplete="off"
                       />
                     </div>
                     <div className="flex-1 flex flex-col gap-1.5">
@@ -360,6 +411,7 @@ const Contacts = () => {
                         value={formData.company}
                         onChange={handleInputChange}
                         className="glass-input"
+                        autoComplete="off"
                       />
                     </div>
                   </div>

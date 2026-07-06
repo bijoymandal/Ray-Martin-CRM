@@ -47,7 +47,7 @@ const Sidebar = () => {
   }
 
   return (
-    <aside className="w-[260px] hidden md:flex flex-col p-8 gap-8 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5">
+    <aside className="w-[260px] hidden md:flex flex-col p-8 gap-8 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5 md:fixed md:top-0 md:left-0 md:bottom-0 md:h-screen md:z-[90] overflow-y-auto">
       <div className="flex flex-col gap-2">
         {menuItems.map((item) => (
           <NavLink

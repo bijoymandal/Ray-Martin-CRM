@@ -60,8 +60,8 @@ export const verifyPasswordAPI = async (password) => {
 };
 
 // Contacts Services
-export const getContactsAPI = async () => {
-  const response = await api.get('/contacts');
+export const getContactsAPI = async (page = 1, limit = 10) => {
+  const response = await api.get('/contacts', { params: { page, limit } });
   return response.data;
 };
 
@@ -86,8 +86,8 @@ export const deleteContactAPI = async (id) => {
 };
 
 // Deals Services
-export const getDealsAPI = async () => {
-  const response = await api.get('/deals');
+export const getDealsAPI = async (page = 1, limit = 10) => {
+  const response = await api.get('/deals', { params: { page, limit } });
   return response.data;
 };
 
@@ -112,8 +112,8 @@ export const deleteDealAPI = async (id) => {
 };
 
 // User Management Services (Admin Only)
-export const getUsersAPI = async () => {
-  const response = await api.get('/users');
+export const getUsersAPI = async (page = 1, limit = 10) => {
+  const response = await api.get('/users', { params: { page, limit } });
   return response.data;
 };
 
@@ -291,8 +291,10 @@ export const deleteCategoryAPI = async (id) => {
 };
 
 // Products Services
-export const getProductsAPI = async (categoryId) => {
-  const response = await api.get('/products', { params: categoryId ? { categoryId } : {} });
+export const getProductsAPI = async (categoryId, page = 1, limit = 10) => {
+  const params = { page, limit };
+  if (categoryId) params.categoryId = categoryId;
+  const response = await api.get('/products', { params });
   return response.data;
 };
 export const createProductAPI = async (data) => {
@@ -309,8 +311,8 @@ export const deleteProductAPI = async (id) => {
 };
 
 // Activity Logging Services
-export const getActivityLogsAPI = async () => {
-  const response = await api.get('/activity');
+export const getActivityLogsAPI = async (page = 1, limit = 20) => {
+  const response = await api.get('/activity', { params: { page, limit } });
   return response.data;
 };
 

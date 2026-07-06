@@ -298,7 +298,7 @@ const ProductForm = () => {
   return (
     <div className="min-h-screen flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 md:pl-[260px] pt-[70px]">
         <Navbar />
 
         <div className="flex-1 p-6 md:p-8 space-y-2 overflow-y-auto max-w-9xl w-full mx-auto">
@@ -312,8 +312,13 @@ const ProductForm = () => {
               <ArrowLeft size={16} />
             </button>
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+              <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {id ? 'Edit Product Workspace' : 'Create New Product'}
+                {!id && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-widest bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20 animate-pulse">
+                    New Product
+                  </span>
+                )}
               </h1>
               <p className="text-[11px] text-slate-400">
                 {id ? 'Modify details, price and image gallery references' : 'Register a new catalog item'}
@@ -340,7 +345,7 @@ const ProductForm = () => {
             </div>
           ) : (
             <div className="glass-card p-6 md:p-8 border-slate-200/60 dark:border-white/5">
-              <form onSubmit={handleSubmit} className="space-y-6 text-xs">
+              <form onSubmit={handleSubmit} className="space-y-6 text-xs" autoComplete="off">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   
                   {/* Left Column - Product Image & Gallery with visual view triggers */}
@@ -455,6 +460,7 @@ const ProductForm = () => {
                           onChange={(e) => setName(e.target.value)}
                           placeholder="e.g. CBSE Practical Physics Manual"
                           className="w-full bg-white dark:bg-dark-input border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                          autoComplete="off"
                         />
                       </div>
 
@@ -559,6 +565,7 @@ const ProductForm = () => {
                             onChange={(e) => setPrice(e.target.value)}
                             placeholder="180"
                             className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -572,6 +579,7 @@ const ProductForm = () => {
                             onChange={(e) => setDiscount(e.target.value)}
                             placeholder="10"
                             className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -596,6 +604,7 @@ const ProductForm = () => {
                             onChange={(e) => setCoupon(e.target.value)}
                             placeholder="e.g. CBSE10"
                             className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none uppercase font-bold text-indigo-500"
+                            autoComplete="off"
                           />
                         </div>
 

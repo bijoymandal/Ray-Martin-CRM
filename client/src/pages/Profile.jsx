@@ -131,7 +131,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-dark-main text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
 
         <div className="flex-1 p-8 max-w-[1200px] w-full mx-auto animate-fade-in">
@@ -190,7 +190,7 @@ const Profile = () => {
                   Account Credentials
                 </h3>
 
-                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-5">
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-5" autoComplete="off">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Display Name</label>
@@ -202,6 +202,7 @@ const Profile = () => {
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           className="glass-input w-full pl-10 pr-3 py-2.5 text-xs"
                           placeholder="Your full name"
+                          autoComplete="name"
                           required
                         />
                       </div>
@@ -217,6 +218,7 @@ const Profile = () => {
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           className="glass-input w-full pl-10 pr-3 py-2.5 text-xs"
                           placeholder="name@company.com"
+                          autoComplete="email"
                           required
                         />
                       </div>
@@ -242,6 +244,7 @@ const Profile = () => {
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             className="glass-input w-full pl-10 pr-3 py-2.5 text-xs"
                             placeholder="Min 6 characters"
+                            autoComplete="new-password"
                           />
                         </div>
                       </div>
@@ -256,6 +259,7 @@ const Profile = () => {
                             onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                             className="glass-input w-full pl-10 pr-3 py-2.5 text-xs"
                             placeholder="Repeat password"
+                            autoComplete="new-password"
                           />
                         </div>
                       </div>
@@ -338,6 +342,7 @@ const Profile = () => {
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 className="glass-input w-full px-3 py-2 text-xs uppercase text-center border-rose-500/30 text-rose-600 focus:border-rose-500"
+                autoComplete="off"
               />
             </div>
 

@@ -19,7 +19,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="h-[70px] px-8 flex items-center justify-between sticky top-0 z-[100] backdrop-blur-md border-b bg-white/70 border-slate-200/80 dark:bg-dark-main/70 dark:border-white/5">
+    <nav className="h-[70px] px-8 flex items-center justify-between fixed top-0 right-0 left-0 md:left-[260px] z-[100] backdrop-blur-md border-b bg-white/70 border-slate-200/80 dark:bg-dark-main/70 dark:border-white/5">
       <div className="flex items-center">
         <span className="text-2xl font-extrabold tracking-tight text-gradient-accent">CRM Pro</span>
       </div>

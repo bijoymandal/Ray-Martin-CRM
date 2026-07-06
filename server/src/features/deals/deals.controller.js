@@ -1,9 +1,17 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
-// Get all deals for the authenticated user
+// Get all deals for the authenticated user (Paginated)
 exports.getAll = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await prisma.deal.count({
+      where: { userId: req.user.id },
+    });
+
     const deals = await prisma.deal.findMany({
       where: { userId: req.user.id },
       include: {
@@ -18,11 +26,16 @@ exports.getAll = async (req, res, next) => {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
 
     res.json({
       success: true,
       count: deals.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: deals,
     });
   } catch (error) {
