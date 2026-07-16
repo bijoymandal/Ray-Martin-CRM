@@ -148,7 +148,7 @@ export const LockScreen = ({ children }) => {
             )}
 
             {/* Password input form */}
-            <form onSubmit={handleUnlock} className="w-full flex flex-col gap-3">
+            <form onSubmit={handleUnlock} className="w-full flex flex-col gap-3" autoComplete="off">
               <div className="relative">
                 <input
                   ref={inputRef}
@@ -158,6 +158,7 @@ export const LockScreen = ({ children }) => {
                   placeholder="Enter Password to Unlock"
                   disabled={loading}
                   className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/60 transition-all font-sans"
+                  autoComplete="new-password"
                 />
                 <KeyRound size={16} className="absolute left-3.5 top-3.5 text-slate-500" />
               </div>

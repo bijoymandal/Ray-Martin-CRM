@@ -2,15 +2,15 @@ const express = require('express');
 const router = express.Router();
 const permissionActionController = require('./permission-action.controller');
 const authMiddleware = require('../../middleware/auth.middleware');
-const { checkRole } = require('../../middleware/rbac.middleware');
+const { checkDynamicPermission } = require('../../middleware/rbac.middleware');
 
 // Protect all routes
 router.use(authMiddleware);
 
-// Only SUPERADMIN/ADMIN can manage dynamic permission actions
-router.get('/', checkRole(['SUPERADMIN', 'ADMIN']), permissionActionController.getAllPermissionActions);
-router.post('/', checkRole(['SUPERADMIN', 'ADMIN']), permissionActionController.createPermissionAction);
-router.put('/:id', checkRole(['SUPERADMIN', 'ADMIN']), permissionActionController.updatePermissionAction);
-router.delete('/:id', checkRole(['SUPERADMIN', 'ADMIN']), permissionActionController.deletePermissionAction);
+// Only SUPERADMIN/ADMIN can manage dynamic permission actions (Dynamic check based on Admin Center)
+router.get('/', checkDynamicPermission('/admin', 'canView'), permissionActionController.getAllPermissionActions);
+router.post('/', checkDynamicPermission('/admin', 'canCreate'), permissionActionController.createPermissionAction);
+router.put('/:id', checkDynamicPermission('/admin', 'canEdit'), permissionActionController.updatePermissionAction);
+router.delete('/:id', checkDynamicPermission('/admin', 'canDelete'), permissionActionController.deletePermissionAction);
 
 module.exports = router;

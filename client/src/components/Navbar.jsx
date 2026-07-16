@@ -1,12 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LogOut, Sun, Moon } from 'lucide-react';
+import { LogOut, Sun, Moon, User, Settings, ChevronDown } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -35,25 +47,71 @@ const Navbar = () => {
         </button>
 
         {user && (
-          <div className="flex items-center gap-6">
-            <Link to="/profile" className="flex items-center gap-3 group cursor-pointer select-none">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-200">
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-3 group cursor-pointer select-none bg-slate-50 hover:bg-slate-100 border border-slate-200/50 dark:bg-white/3 dark:hover:bg-white/5 dark:border-white/5 px-3 py-1.5 rounded-xl transition-all duration-200"
+            >
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xs text-white shadow-md shadow-indigo-500/20 group-hover:scale-102 transition-transform duration-200">
                 {getInitials(user.name)}
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">{user.name}</span>
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold dark:text-slate-500">{user.role}</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200 leading-tight">
+                  {user.name}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold dark:text-slate-500 leading-none">
+                  {user.role}
+                </span>
               </div>
-            </Link>
-            
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-transparent border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-white/5 dark:text-slate-300 dark:hover:bg-white/5"
-              title="Sign Out"
-            >
-              <LogOut size={15} />
-              <span>Sign Out</span>
+              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${dropdownOpen ? 'rotate-180 text-slate-600 dark:text-slate-300' : ''}`} />
             </button>
+
+            {/* Dropdown Menu */}
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl border bg-white/95 dark:bg-dark-card/95 backdrop-blur-lg border-slate-200/80 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none p-2 flex flex-col gap-1 animate-fade-in z-[110]">
+                {/* Header User info */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5 flex flex-col mb-1">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user.name}</span>
+                  <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{user.email}</span>
+                </div>
+
+                {/* Profile Link */}
+                <Link
+                  to="/profile"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <User size={15} className="text-slate-400" />
+                  <span>My Profile</span>
+                </Link>
+
+                {/* Admin/Settings Link */}
+                {(user.role === 'SUPERADMIN' || user.role === 'ADMIN') && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    <Settings size={15} className="text-slate-400" />
+                    <span>Admin Center</span>
+                  </Link>
+                )}
+
+                <div className="h-[1px] bg-slate-100 dark:bg-white/5 my-1" />
+
+                {/* Logout button */}
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    logout();
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300 transition-all cursor-pointer text-left w-full border-none bg-transparent"
+                >
+                  <LogOut size={15} className="text-rose-400" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

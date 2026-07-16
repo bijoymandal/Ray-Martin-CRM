@@ -19,10 +19,10 @@ const Products = () => {
   const { permissions } = useAuth();
   const productPermission = permissions.find(p => p.menu.path === '/products');
 
-  const canCreate = user?.role === 'SUPERADMIN' || (productPermission?.canCreate ?? false);
-  const canEdit = user?.role === 'SUPERADMIN' || (productPermission?.canEdit ?? false);
-  const canDelete = user?.role === 'SUPERADMIN' || (productPermission?.canDelete ?? false);
-  const canToggleStatus = user?.role === 'SUPERADMIN' || (productPermission?.canEdit ?? false);
+  const canCreate = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canCreate') ?? false);
+  const canEdit = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canEdit') ?? false);
+  const canDelete = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canDelete') ?? false);
+  const canToggleStatus = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canEdit') ?? false);
 
   // Custom Confirmation Modal state
   const [confirmModal, setConfirmModal] = useState({

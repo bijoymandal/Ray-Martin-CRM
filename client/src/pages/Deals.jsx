@@ -6,8 +6,11 @@ import { Plus, Edit2, Trash2, X, AlertCircle, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Deals = () => {
-  const { user } = useAuth();
-  const canWrite = user && ['SUPERADMIN', 'ADMIN', 'SALESMAN'].includes(user.role);
+  const { user, permissions } = useAuth();
+  const dealsPermission = permissions.find(p => p.menu.path === '/deals');
+  const canCreate = user?.role === 'SUPERADMIN' || (dealsPermission?.actions?.includes('canCreate') ?? false);
+  const canEdit = user?.role === 'SUPERADMIN' || (dealsPermission?.actions?.includes('canEdit') ?? false);
+  const canDelete = user?.role === 'SUPERADMIN' || (dealsPermission?.actions?.includes('canDelete') ?? false);
   const [deals, setDeals] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -177,7 +180,7 @@ const Deals = () => {
               <h1 className="text-3xl font-extrabold tracking-tight text-gradient mb-2">Deals Pipeline</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Track contract values, pipelines, and closing workflows.</p>
             </div>
-            {canWrite && (
+            {canCreate && (
               <button
                 onClick={handleOpenAdd}
                 className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-bold text-sm px-5 py-2.5 shadow-lg shadow-indigo-500/20 hover:brightness-110 hover:shadow-indigo-500/30 transition-all duration-200 cursor-pointer"
@@ -231,7 +234,7 @@ const Deals = () => {
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Company</th>
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Value</th>
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Stage</th>
-                      {canWrite && <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>}
+                      {(canEdit || canDelete) && <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
@@ -252,23 +255,27 @@ const Deals = () => {
                             {formatStage(deal.stage)}
                           </span>
                         </td>
-                        {canWrite && (
+                        {(canEdit || canDelete) && (
                           <td className="p-4">
                             <div className="flex justify-end gap-2.5">
-                              <button
-                                onClick={() => handleOpenEdit(deal)}
-                                className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                                title="Edit"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleOpenDelete(deal.id)}
-                                className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleOpenEdit(deal)}
+                                  className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleOpenDelete(deal.id)}
+                                  className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}

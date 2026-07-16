@@ -12,8 +12,14 @@ import {
   Tag, Award, GraduationCap, X, Check, Upload, Image, HelpCircle,
   ChevronRight
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Academy = () => {
+  const { user, permissions } = useAuth();
+  const academyPermission = permissions.find(p => p.menu.path === '/academy');
+  const canCreate = user?.role === 'SUPERADMIN' || (academyPermission?.actions?.includes('canCreate') ?? false);
+  const canEdit = user?.role === 'SUPERADMIN' || (academyPermission?.actions?.includes('canEdit') ?? false);
+  const canDelete = user?.role === 'SUPERADMIN' || (academyPermission?.actions?.includes('canDelete') ?? false);
   const [activeTab, setActiveTab] = useState('boards'); // 'boards', 'classes', 'subjects', 'categories'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -457,7 +463,9 @@ const Academy = () => {
                           <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Hierarchy Path</th>
                         )}
                         <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 w-24 text-center">Status</th>
-                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right w-24">Actions</th>
+                        {(canEdit || canDelete) && (
+                          <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right w-24">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
@@ -503,36 +511,45 @@ const Academy = () => {
                           )}
                           <td className="p-4 text-center">
                             <button
-                              onClick={() => handleToggleStatus(item)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer select-none border ${
-                                item.status
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
+                              onClick={() => canEdit && handleToggleStatus(item)}
+                              disabled={!canEdit}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all shadow-sm select-none border ${
+                                !canEdit
+                                  ? 'opacity-60 cursor-not-allowed border-slate-200 dark:border-white/5'
+                                  : item.status
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 cursor-pointer'
+                                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 hover:bg-slate-500/20 cursor-pointer'
                               }`}
-                              title={`Click to change status to ${item.status ? 'Inactive' : 'Active'}`}
+                              title={canEdit ? `Click to change status to ${item.status ? 'Inactive' : 'Active'}` : 'Insufficient permissions to change status'}
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${item.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                               <span>{item.status ? 'Active' : 'Inactive'}</span>
                             </button>
                           </td>
-                          <td className="p-4 text-right">
-                            <div className="inline-flex gap-2">
-                              <button
-                                onClick={() => handleEditClick(item)}
-                                className="p-2 rounded-lg border border-slate-200/60 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-500 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                                title="Edit Item"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(item.id, item.name)}
-                                className="p-2 rounded-lg border border-slate-200/60 text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:border-white/5 dark:text-slate-500 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                                title="Delete Item"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
+                          {(canEdit || canDelete) && (
+                            <td className="p-4 text-right">
+                              <div className="inline-flex gap-2">
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleEditClick(item)}
+                                    className="p-2 rounded-lg border border-slate-200/60 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-500 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                    title="Edit Item"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    onClick={() => handleDeleteClick(item.id, item.name)}
+                                    className="p-2 rounded-lg border border-slate-200/60 text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:border-white/5 dark:text-slate-500 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                    title="Delete Item"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                       {items.length === 0 && (
@@ -693,7 +710,7 @@ const Academy = () => {
                     </button>
                   </form>
                 </div>
-              ) : (
+              ) : canCreate ? (
                 // CREATE CARD
                 <div className="glass-card p-6">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-4 flex items-center gap-2 font-bold">
@@ -891,6 +908,14 @@ const Academy = () => {
                       Save {getTabLabel()}
                     </button>
                   </form>
+                </div>
+              ) : (
+                <div className="glass-card p-6 flex flex-col items-center justify-center text-center py-12 border-slate-200/60 dark:border-white/5 shadow-inner">
+                  <AlertCircle size={32} className="text-slate-400 dark:text-slate-600 mb-3 animate-pulse" />
+                  <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Access Restricted</h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 max-w-[240px] leading-relaxed">
+                    You do not have permission to register new {getTabLabel().toLowerCase()} taxonomy items.
+                  </p>
                 </div>
               )}
             </div>

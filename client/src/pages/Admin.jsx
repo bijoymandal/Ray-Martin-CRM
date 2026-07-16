@@ -20,6 +20,8 @@ import {
   updatePermissionActionAPI,
   deletePermissionActionAPI,
   getActivityLogsAPI,
+  getSettingsAPI,
+  updateSettingsAPI,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -35,6 +37,11 @@ import {
   Link,
   ChevronRight,
   RefreshCw,
+  Server,
+  CreditCard,
+  Save,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 const Admin = () => {
@@ -71,6 +78,29 @@ const Admin = () => {
     fromRole: 'SALESMAN',
     toRole: 'EDITOR',
     action: 'copy', // 'copy' or 'move'
+  });
+
+  // Settings state
+  const [settings, setSettings] = useState({
+    payment_credentials: {
+      stripePublishableKey: '',
+      stripeSecretKey: '',
+      stripeWebhookSecret: '',
+    },
+    s3_credentials: {
+      accessKeyId: '',
+      secretAccessKey: '',
+      region: '',
+      bucket: '',
+      endpoint: '',
+    },
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [showSecrets, setShowSecrets] = useState({
+    stripeSecretKey: false,
+    stripeWebhookSecret: false,
+    secretAccessKey: false,
   });
 
   // Role states
@@ -213,6 +243,59 @@ const Admin = () => {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      setSettingsLoading(true);
+      setError('');
+      const res = await getSettingsAPI();
+      if (res.success) {
+        // Ensure default structures are preserved
+        const data = res.data;
+        if (!data.payment_credentials) {
+          data.payment_credentials = {
+            stripePublishableKey: '',
+            stripeSecretKey: '',
+            stripeWebhookSecret: '',
+          };
+        }
+        if (!data.s3_credentials) {
+          data.s3_credentials = {
+            accessKeyId: '',
+            secretAccessKey: '',
+            region: '',
+            bucket: '',
+            endpoint: '',
+          };
+        }
+        setSettings(data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error loading system settings');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateSettings = async (key, value) => {
+    try {
+      setSavingSettings(true);
+      setError('');
+      setSuccess('');
+      const res = await updateSettingsAPI(key, value);
+      if (res.success) {
+        setSuccess(`Successfully updated ${key.replace('_', ' ')}`);
+        fetchSettings();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Error updating settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoles();
     fetchPermissionActions();
@@ -232,6 +315,8 @@ const Admin = () => {
       fetchPermissionActions();
     } else if (activeTab === 'activity') {
       fetchActivityLogs(activityPage);
+    } else if (activeTab === 'settings') {
+      fetchSettings();
     }
   }, [activeTab, usersPage, activityPage]);
 
@@ -575,6 +660,16 @@ const Admin = () => {
                   }`}
                 >
                   User Activity Logs
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`pb-4 px-2 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                    activeTab === 'settings'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  System Settings
                 </button>
               </>
             )}
@@ -1324,7 +1419,7 @@ const Admin = () => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'activity' ? (
             /* User Activity Logs Tab (Superadmin exclusive audit logs dashboard) */
             <div className="glass-card p-6 border-slate-200/60 dark:border-white/5 w-full animate-fade-in">
               <div className="flex justify-between items-center mb-6 border-b border-slate-200/60 dark:border-white/5 pb-3">
@@ -1482,6 +1577,235 @@ const Admin = () => {
                 )}
               </>
             )}
+          </div>
+        ) : (
+          /* System Settings Tab (Superadmin exclusive config board) */
+          <div className="w-full flex flex-col gap-6 animate-fade-in">
+            <div className="glass-card p-6 border-slate-200/60 dark:border-white/5 w-full">
+              <div className="flex justify-between items-center mb-6 border-b border-slate-200/60 dark:border-white/5 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                    System Settings (SUPERADMIN Control Panel)
+                  </h2>
+                  <p className="text-xs text-slate-400 font-semibold mt-1">
+                    Configure integrations for S3-compatible cloud storage and Stripe payment gateway.
+                  </p>
+                </div>
+                {settingsLoading && (
+                  <div className="flex items-center gap-2 text-indigo-500 font-semibold text-xs animate-pulse">
+                    <RefreshCw size={14} className="animate-spin" />
+                    Loading Settings...
+                  </div>
+                )}
+              </div>
+
+              {settingsLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="w-8 h-8 rounded-full border-4 border-indigo-500/20 border-t-indigo-600 animate-spin" />
+                  <span className="text-xs text-slate-400 font-semibold">Retrieving secure configurations...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* S3 Storage settings */}
+                  <div className="bg-slate-50/50 dark:bg-white/1 border border-slate-200/50 dark:border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+                    <div className="flex items-center gap-3 border-b border-slate-200/60 dark:border-white/5 pb-3">
+                      <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl">
+                        <Server size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">S3 Cloud Storage</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold">Bucket and credential details for media assets</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Access Key ID</label>
+                        <input
+                          type="text"
+                          value={settings.s3_credentials?.accessKeyId || ''}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            s3_credentials: { ...settings.s3_credentials, accessKeyId: e.target.value }
+                          })}
+                          disabled={savingSettings}
+                          placeholder="e.g. AKIAIOSFODNN7EXAMPLE"
+                          className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Secret Access Key</label>
+                        <div className="relative">
+                          <input
+                            type={showSecrets.secretAccessKey ? 'text' : 'password'}
+                            value={settings.s3_credentials?.secretAccessKey || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              s3_credentials: { ...settings.s3_credentials, secretAccessKey: e.target.value }
+                            })}
+                            disabled={savingSettings}
+                            placeholder="••••••••••••••••••••••••••••••••••••••••"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl pl-4 pr-10 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSecrets({ ...showSecrets, secretAccessKey: !showSecrets.secretAccessKey })}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showSecrets.secretAccessKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Region</label>
+                          <input
+                            type="text"
+                            value={settings.s3_credentials?.region || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              s3_credentials: { ...settings.s3_credentials, region: e.target.value }
+                            })}
+                            disabled={savingSettings}
+                            placeholder="e.g. us-east-1"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Bucket Name</label>
+                          <input
+                            type="text"
+                            value={settings.s3_credentials?.bucket || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              s3_credentials: { ...settings.s3_credentials, bucket: e.target.value }
+                            })}
+                            disabled={savingSettings}
+                            placeholder="e.g. my-company-uploads"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Custom Endpoint (Optional)</label>
+                        <input
+                          type="text"
+                          value={settings.s3_credentials?.endpoint || ''}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            s3_credentials: { ...settings.s3_credentials, endpoint: e.target.value }
+                          })}
+                          disabled={savingSettings}
+                          placeholder="e.g. https://s3.us-east-1.wasabisys.com"
+                          className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={savingSettings}
+                        onClick={() => handleUpdateSettings('s3_credentials', settings.s3_credentials)}
+                        className="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10"
+                      >
+                        {savingSettings ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                        Save S3 Storage Settings
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payment Gateways settings */}
+                  <div className="bg-slate-50/50 dark:bg-white/1 border border-slate-200/50 dark:border-white/5 rounded-2xl p-6 flex flex-col gap-4">
+                    <div className="flex items-center gap-3 border-b border-slate-200/60 dark:border-white/5 pb-3">
+                      <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl">
+                        <CreditCard size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Stripe Payment Gateway</h3>
+                        <p className="text-[10px] text-slate-400 font-semibold">Stripe credentials for customer checkout payments</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Stripe Publishable Key</label>
+                        <input
+                          type="text"
+                          value={settings.payment_credentials?.stripePublishableKey || ''}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            payment_credentials: { ...settings.payment_credentials, stripePublishableKey: e.target.value }
+                          })}
+                          disabled={savingSettings}
+                          placeholder="e.g. pk_test_..."
+                          className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Stripe Secret Key</label>
+                        <div className="relative">
+                          <input
+                            type={showSecrets.stripeSecretKey ? 'text' : 'password'}
+                            value={settings.payment_credentials?.stripeSecretKey || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              payment_credentials: { ...settings.payment_credentials, stripeSecretKey: e.target.value }
+                            })}
+                            disabled={savingSettings}
+                            placeholder="••••••••••••••••••••••••••••••••••••••••"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl pl-4 pr-10 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSecrets({ ...showSecrets, stripeSecretKey: !showSecrets.stripeSecretKey })}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showSecrets.stripeSecretKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Stripe Webhook Secret</label>
+                        <div className="relative">
+                          <input
+                            type={showSecrets.stripeWebhookSecret ? 'text' : 'password'}
+                            value={settings.payment_credentials?.stripeWebhookSecret || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              payment_credentials: { ...settings.payment_credentials, stripeWebhookSecret: e.target.value }
+                            })}
+                            disabled={savingSettings}
+                            placeholder="••••••••••••••••••••••••••••••••••••••••"
+                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl pl-4 pr-10 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSecrets({ ...showSecrets, stripeWebhookSecret: !showSecrets.stripeWebhookSecret })}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showSecrets.stripeWebhookSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={savingSettings}
+                        onClick={() => handleUpdateSettings('payment_credentials', settings.payment_credentials)}
+                        className="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10"
+                      >
+                        {savingSettings ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                        Save Stripe Settings
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
           </div>

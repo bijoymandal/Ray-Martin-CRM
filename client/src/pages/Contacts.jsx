@@ -3,8 +3,15 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { getContactsAPI, createContactAPI, updateContactAPI, deleteContactAPI } from '../services/api';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Contacts = () => {
+  const { user, permissions } = useAuth();
+  const contactsPermission = permissions.find(p => p.menu.path === '/contacts');
+  const canCreate = user?.role === 'SUPERADMIN' || (contactsPermission?.actions?.includes('canCreate') ?? false);
+  const canEdit = user?.role === 'SUPERADMIN' || (contactsPermission?.actions?.includes('canEdit') ?? false);
+  const canDelete = user?.role === 'SUPERADMIN' || (contactsPermission?.actions?.includes('canDelete') ?? false);
+
   const [contacts, setContacts] = useState([]);
   const [filteredContacts, setFilteredContacts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,13 +192,15 @@ const Contacts = () => {
               <h1 className="text-3xl font-extrabold tracking-tight text-gradient mb-2">Contacts</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Manage your clients, leads, and customer accounts.</p>
             </div>
-            <button
-              onClick={handleOpenAdd}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-bold text-sm px-5 py-2.5 shadow-lg shadow-indigo-500/20 hover:brightness-110 hover:shadow-indigo-500/30 transition-all duration-200 cursor-pointer"
-            >
-              <Plus size={18} />
-              <span>Add Contact</span>
-            </button>
+            {canCreate && (
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-bold text-sm px-5 py-2.5 shadow-lg shadow-indigo-500/20 hover:brightness-110 hover:shadow-indigo-500/30 transition-all duration-200 cursor-pointer"
+              >
+                <Plus size={18} />
+                <span>Add Contact</span>
+              </button>
+            )}
           </div>
 
           {error && (
@@ -245,7 +254,9 @@ const Contacts = () => {
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Company</th>
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Status</th>
                       <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Deals</th>
-                      <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>
+                      {(canEdit || canDelete) && (
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
@@ -263,24 +274,30 @@ const Contacts = () => {
                           </span>
                         </td>
                         <td className="p-4 text-slate-500 dark:text-slate-400">{contact._count?.deals || 0}</td>
-                        <td className="p-4">
-                          <div className="flex justify-end gap-2.5">
-                            <button
-                              onClick={() => handleOpenEdit(contact)}
-                              className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                              title="Edit"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleOpenDelete(contact.id)}
-                              className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
+                        {(canEdit || canDelete) && (
+                          <td className="p-4">
+                            <div className="flex justify-end gap-2.5">
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleOpenEdit(contact)}
+                                  className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-indigo-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleOpenDelete(contact.id)}
+                                  className="p-2 rounded-lg border border-slate-200/60 text-slate-500 hover:text-rose-600 hover:bg-slate-50 dark:border-white/5 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {filteredContacts.length === 0 && (

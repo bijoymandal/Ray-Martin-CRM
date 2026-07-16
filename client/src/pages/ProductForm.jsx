@@ -127,8 +127,8 @@ const ProductForm = () => {
   useEffect(() => {
     if (user && user.role !== 'SUPERADMIN') {
       const hasPerm = id 
-        ? productPermission?.canEdit 
-        : productPermission?.canCreate;
+        ? (productPermission?.actions?.includes('canEdit') ?? false)
+        : (productPermission?.actions?.includes('canCreate') ?? false);
       
       if (!hasPerm) {
         navigate('/products');

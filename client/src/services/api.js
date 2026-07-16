@@ -321,4 +321,15 @@ export const logVisitAPI = async (path, name) => {
   return response.data;
 };
 
+// System Settings Services
+export const getSettingsAPI = async () => {
+  const response = await api.get('/settings');
+  return response.data;
+};
+
+export const updateSettingsAPI = async (key, value) => {
+  const response = await api.put(`/settings/${key}`, { value });
+  return response.data;
+};
+
 export default api;
