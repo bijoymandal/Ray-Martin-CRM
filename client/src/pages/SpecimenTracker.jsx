@@ -735,16 +735,19 @@ const SpecimenTracker = () => {
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <select
+                    <SearchSelect
+                      placeholder="All Verification"
+                      searchPlaceholder="Filter status..."
+                      options={[
+                        { value: '', label: 'All Verification' },
+                        { value: 'PENDING', label: 'PENDING' },
+                        { value: 'APPROVED', label: 'APPROVED' },
+                        { value: 'REJECTED', label: 'REJECTED' },
+                      ]}
                       value={verificationFilter}
-                      onChange={(e) => setVerificationFilter(e.target.value)}
-                      className="px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-xl focus:outline-none"
-                    >
-                      <option value="">All Verification</option>
-                      <option value="PENDING">PENDING</option>
-                      <option value="APPROVED">APPROVED</option>
-                      <option value="REJECTED">REJECTED</option>
-                    </select>
+                      onChange={setVerificationFilter}
+                      accentColor="amber"
+                    />
 
                     <button
                       onClick={() => setFlaggedOnly(!flaggedOnly)}
