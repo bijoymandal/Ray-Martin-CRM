@@ -504,6 +504,32 @@ export const deleteTeacherAPI = async (id) => {
   return response.data;
 };
 
+// Stock Management Services
+export const getStockSummaryAPI = async () => {
+  const response = await api.get('/stock/summary');
+  return response.data;
+};
+
+export const getProductsStockAPI = async (params = {}) => {
+  const response = await api.get('/stock/products', { params });
+  return response.data;
+};
+
+export const adjustStockAPI = async (data) => {
+  const response = await api.post('/stock/adjust', data);
+  return response.data;
+};
+
+export const getStockMovementsAPI = async (params = {}) => {
+  const response = await api.get('/stock/movements', { params });
+  return response.data;
+};
+
+export const getStockAlertsAPI = async () => {
+  const response = await api.get('/stock/alerts');
+  return response.data;
+};
+
 export default api;
 
 

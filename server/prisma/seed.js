@@ -232,6 +232,25 @@ async function main() {
     BOOKSELLER: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   });
 
+  // 10. Stock Management Menu
+  const mStock = await prisma.menu.create({
+    data: {
+      name: 'Stock Management',
+      path: '/stock',
+      iconName: 'Package',
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'BOOKSELLER'],
+      order: 10,
+    },
+  });
+  await seedPermissions(mStock, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    ACCOUNT:    { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    SALESMAN:   { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    BOOKSELLER: { canView: true, canCreate: false, canEdit: true, canDelete: false },
+  });
+
   console.log('Created default menus and their permission matrices.');
 
 

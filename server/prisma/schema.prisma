@@ -152,6 +152,19 @@ model Category {
   updatedAt DateTime @updatedAt
 }
 
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum MovementType {
+  INWARD
+  OUTWARD
+  SPECIMEN_ISSUE
+  ADJUSTMENT
+}
+
 model Product {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
   name            String
@@ -164,11 +177,30 @@ model Product {
   coupon          String?
   image           String?
   gallery         String[]
+  sku             String?          @unique
+  stockQuantity   Int              @default(100)
+  minStockThreshold Int            @default(10)
+  stockStatus     StockStatus      @default(IN_STOCK)
   categoryId      String           @db.ObjectId
   category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   specimenRecords SpecimenRecord[]
+  stockMovements  StockMovement[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+}
+
+model StockMovement {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  productId     String       @db.ObjectId
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          MovementType
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  reason        String?
+  referenceNo   String?
+  createdBy     String?
+  createdAt     DateTime     @default(now())
 }
 
 model ActivityLog {

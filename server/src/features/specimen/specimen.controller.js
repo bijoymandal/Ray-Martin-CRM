@@ -275,6 +275,40 @@ exports.create = async (req, res, next) => {
       },
     });
 
+    // 4. Automatically deduct 1 copy from Product stock & log SPECIMEN_ISSUE movement
+    try {
+      const targetProduct = await prisma.product.findUnique({ where: { id: bookId } });
+      if (targetProduct) {
+        const prevStock = targetProduct.stockQuantity || 0;
+        const newStock = Math.max(0, prevStock - 1);
+        let newStatus = 'IN_STOCK';
+        if (newStock <= 0) newStatus = 'OUT_OF_STOCK';
+        else if (newStock <= (targetProduct.minStockThreshold || 10)) newStatus = 'LOW_STOCK';
+
+        await prisma.product.update({
+          where: { id: bookId },
+          data: { stockQuantity: newStock, stockStatus: newStatus },
+        });
+
+        const salespersonName = req.user ? `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email : 'Sales Rep';
+
+        await prisma.stockMovement.create({
+          data: {
+            productId: bookId,
+            type: 'SPECIMEN_ISSUE',
+            quantity: 1,
+            previousStock: prevStock,
+            newStock: newStock,
+            reason: `Specimen copy given to teacher ${cleanName} at ${cleanSchool}`,
+            referenceNo: `SPEC-${record.id.slice(-6).toUpperCase()}`,
+            createdBy: salespersonName,
+          },
+        });
+      }
+    } catch (stockErr) {
+      console.error('Failed to deduct specimen stock:', stockErr.message);
+    }
+
     await logActivity(
       req,
       'CREATE',
