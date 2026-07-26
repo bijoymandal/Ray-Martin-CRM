@@ -20,13 +20,14 @@ async function main() {
   await prisma.permissionAction.deleteMany({});
 
   console.log('Seeding roles...');
-  const rolesList = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN'];
+  const rolesList = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN', 'BOOKSELLER'];
   const roleDescriptions = {
     SUPERADMIN: 'Super Administrator with full bypass rights',
     ADMIN: 'Administrator with full system privileges',
     EDITOR: 'Editor with read and write access to resources',
     ACCOUNT: 'Accountant with limited view and financial access',
     SALESMAN: 'Sales representative with lead and deal access',
+    BOOKSELLER: 'Bookseller with product view and discount editing access',
   };
 
   for (const roleName of rolesList) {
@@ -54,7 +55,7 @@ async function main() {
 
   // Helper to seed permissions for a menu
   const seedPermissions = async (menu, rules) => {
-    const roles = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN'];
+    const roles = ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN', 'BOOKSELLER'];
     for (const role of roles) {
       const r = rules[role] || { canView: false, canCreate: false, canEdit: false, canDelete: false };
       const actions = [];
@@ -162,7 +163,7 @@ async function main() {
       name: 'Products',
       path: '/products',
       iconName: 'ShoppingBag',
-      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN'],
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN', 'BOOKSELLER'],
       order: 6,
     },
   });
@@ -171,9 +172,49 @@ async function main() {
     ADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     EDITOR: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     SALESMAN: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    BOOKSELLER: { canView: true, canCreate: false, canEdit: true, canDelete: false },
+  });
+
+  // 7. Marketing Menu
+  const mMarketing = await prisma.menu.create({
+    data: {
+      name: 'Marketing',
+      path: '/marketing',
+      iconName: 'Megaphone',
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN'],
+      order: 7,
+    },
+  });
+  await seedPermissions(mMarketing, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    ACCOUNT:    { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    SALESMAN:   { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    BOOKSELLER: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+  });
+
+  // 8. Specimen Tracker Menu
+  const mSpecimen = await prisma.menu.create({
+    data: {
+      name: 'Specimen Tracker',
+      path: '/specimen',
+      iconName: 'BookOpen',
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN', 'BOOKSELLER'],
+      order: 8,
+    },
+  });
+  await seedPermissions(mSpecimen, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    ACCOUNT:    { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    SALESMAN:   { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    BOOKSELLER: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   });
 
   console.log('Created default menus and their permission matrices.');
+
 
   const hashedPassword = await bcrypt.hash('admin123', 12);
 

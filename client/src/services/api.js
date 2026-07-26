@@ -351,4 +351,45 @@ export const getVisitsAPI = async (page = 1, limit = 10) => {
   return response.data;
 };
 
+// Specimen Tracker Services
+export const getSpecimensAPI = async (params = {}) => {
+  const response = await api.get('/specimen', { params });
+  return response.data;
+};
+
+export const checkSpecimenDuplicateAPI = async (bookId, teacherName, teacherSchool) => {
+  const response = await api.get('/specimen/check', { params: { bookId, teacherName, teacherSchool } });
+  return response.data;
+};
+
+
+export const createSpecimenAPI = async (formData) => {
+  const response = await api.post('/specimen', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const getSpecimenAuditAPI = async () => {
+  const response = await api.get('/specimen/audit');
+  return response.data;
+};
+
+export const verifySpecimenRecordAPI = async (id, verificationStatus, flagReason, notes) => {
+  const response = await api.put(`/specimen/${id}/verify`, { verificationStatus, flagReason, notes });
+  return response.data;
+};
+
+export const updateSpecimenStatusAPI = async (id, status, notes) => {
+  const response = await api.put(`/specimen/${id}/status`, { status, notes });
+  return response.data;
+};
+
+export const deleteSpecimenAPI = async (id) => {
+  const response = await api.delete(`/specimen/${id}`);
+  return response.data;
+};
+
 export default api;
+
+

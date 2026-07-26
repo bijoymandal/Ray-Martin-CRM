@@ -11,6 +11,7 @@ const productRoutes = require('../features/products/products.routes');
 const roleRoutes = require('../features/roles/role.routes');
 const permissionActionRoutes = require('../features/permissions/permission-action.routes');
 const activityRoutes = require('../features/activity/activity.routes');
+const specimenRoutes = require('../features/specimen/specimen.routes');
 
 router.use('/auth', authRoutes);
 router.use('/contacts', contactRoutes);
@@ -22,5 +23,7 @@ router.use('/products', productRoutes);
 router.use('/roles', roleRoutes);
 router.use('/permission-actions', permissionActionRoutes);
 router.use('/activity', activityRoutes);
+router.use('/specimen', specimenRoutes);
+
 
 module.exports = router;

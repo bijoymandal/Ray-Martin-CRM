@@ -12,6 +12,8 @@ import Admin from './pages/Admin';
 import Academy from './pages/Academy';
 import Products from './pages/Products';
 import ProductForm from './pages/ProductForm';
+import Marketing from './pages/Marketing';
+import SpecimenTracker from './pages/SpecimenTracker';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
@@ -164,6 +166,22 @@ const App = () => {
           element={
             <ProtectedRoute menuPath="/visits">
               <Visits />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/marketing"
+          element={
+            <ProtectedRoute menuPath="/marketing">
+              <Marketing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/specimen"
+          element={
+            <ProtectedRoute menuPath="/specimen">
+              <SpecimenTracker />
             </ProtectedRoute>
           }
         />

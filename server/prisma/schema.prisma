@@ -31,15 +31,16 @@ enum DealStage {
 }
 
 model User {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  email     String    @unique
-  name      String
-  password  String
-  role      String    @default("SALESMAN")
-  contacts  Contact[]
-  deals     Deal[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  email           String           @unique
+  name            String
+  password        String
+  role            String           @default("SALESMAN")
+  contacts        Contact[]
+  deals           Deal[]
+  specimenRecords SpecimenRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Contact {
@@ -151,21 +152,22 @@ model Category {
 }
 
 model Product {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
   name            String
   description     String?
   price           Float
-  discount        Float    @default(0) // Percentage discount
-  discountedPrice Float    @default(0) // Auto-calculated and rounded-off final price
-  status          Boolean  @default(true)
-  offer           Boolean  @default(false)
+  discount        Float            @default(0)
+  discountedPrice Float            @default(0)
+  status          Boolean          @default(true)
+  offer           Boolean          @default(false)
   coupon          String?
-  image           String?  // Main product image logo
-  gallery         String[] // Multiple image gallery paths
-  categoryId      String   @db.ObjectId
-  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  image           String?
+  gallery         String[]
+  categoryId      String           @db.ObjectId
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  specimenRecords SpecimenRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model ActivityLog {
@@ -180,3 +182,43 @@ model ActivityLog {
   newValues  Json?
   timestamp  DateTime @default(now())
 }
+
+// ─── Specimen Book Distribution Tracker ───────────────────────────────────────
+model SpecimenRecord {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Book reference
+  bookId             String    @db.ObjectId
+  book               Product   @relation(fields: [bookId], references: [id], onDelete: Restrict)
+
+  // Teacher & School details
+  teacherName        String
+  teacherPhone       String?
+  teacherSchool      String
+  teacherSubject     String?
+
+  // Proof Image & Image Hash for Duplicate Image Detection
+  proofImage         String?   // Uploaded image proof
+  imageHash          String?   // MD5 hash of uploaded image file
+
+  // Salesperson who distributed the book
+  salesPersonId      String    @db.ObjectId
+  salesPerson        User      @relation(fields: [salesPersonId], references: [id], onDelete: Restrict)
+
+  // Record state & Superadmin Verification
+  handedAt           DateTime  @default(now())
+  status             String    @default("GIVEN") // GIVEN | RETURNED | LOST
+  verificationStatus String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  flagReason         String?   // DUPLICATE_IMAGE | DUPLICATE_TEACHER | DUPLICATE_BOOK
+  verifiedBy         String?   // Superadmin name/email
+  verifiedAt         DateTime?
+  notes              String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // DUPLICATE GUARD: same book cannot go to same teacher at same school twice
+  @@unique([bookId, teacherName, teacherSchool])
+}
+
+
