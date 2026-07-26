@@ -213,7 +213,27 @@ async function main() {
     BOOKSELLER: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   });
 
+  // 9. Master Data Menu
+  const mMasterData = await prisma.menu.create({
+    data: {
+      name: 'Master Data',
+      path: '/master-data',
+      iconName: 'MapPin',
+      roles: ['SUPERADMIN', 'ADMIN'],
+      order: 9,
+    },
+  });
+  await seedPermissions(mMasterData, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    ACCOUNT:    { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    SALESMAN:   { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    BOOKSELLER: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+  });
+
   console.log('Created default menus and their permission matrices.');
+
 
 
   const hashedPassword = await bcrypt.hash('admin123', 12);

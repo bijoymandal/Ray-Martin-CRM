@@ -125,12 +125,19 @@ const ProductForm = () => {
   const { permissions } = useAuth();
   const productPermission = permissions.find(p => p.menu.path === '/products');
 
+  // Derived permission flags
+  const canCreate    = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canCreate') ?? false);
+  const canEdit      = user?.role === 'SUPERADMIN' || (productPermission?.actions?.includes('canEdit')   ?? false);
+  const canDiscount  = canEdit; // canEdit is the gate for applying discounts
+  // BOOKSELLER: has canEdit but NOT canCreate — discount-only edit mode
+  const isBooksellerMode = canEdit && !canCreate && user?.role !== 'SUPERADMIN';
+
   useEffect(() => {
     if (user && user.role !== 'SUPERADMIN') {
-      const hasPerm = id 
+      const hasPerm = id
         ? (productPermission?.actions?.includes('canEdit') ?? false)
         : (productPermission?.actions?.includes('canCreate') ?? false);
-      
+
       if (!hasPerm) {
         navigate('/products');
         return;
@@ -235,28 +242,38 @@ const ProductForm = () => {
     setError('');
     setSuccess('');
 
-    if (!name.trim()) {
-      setError('Product Name is required.');
-      return;
-    }
-    if (!price || isNaN(parseFloat(price))) {
-      setError('Valid Price is required.');
-      return;
-    }
-    if (!selectedCategoryId) {
-      setError('Please select a Category.');
-      return;
+    // BOOKSELLER only edits discount — skip full-form validation
+    if (!isBooksellerMode) {
+      if (!name.trim()) {
+        setError('Product Name is required.');
+        return;
+      }
+      if (!price || isNaN(parseFloat(price))) {
+        setError('Valid Price is required.');
+        return;
+      }
+      if (!selectedCategoryId) {
+        setError('Please select a Category.');
+        return;
+      }
     }
 
     const formData = new FormData();
-    formData.append('name', name.trim());
-    formData.append('description', description.trim());
-    formData.append('price', price);
-    formData.append('discount', discount || '0');
-    formData.append('status', String(status));
-    formData.append('offer', String(offer));
-    formData.append('coupon', coupon.trim());
-    formData.append('categoryId', selectedCategoryId);
+    // BOOKSELLER: only submit discount + offer fields — preserve everything else
+    if (isBooksellerMode) {
+      formData.append('discount', discount || '0');
+      formData.append('offer', String(offer));
+      if (coupon.trim()) formData.append('coupon', coupon.trim());
+    } else {
+      formData.append('name', name.trim());
+      formData.append('description', description.trim());
+      formData.append('price', price);
+      formData.append('discount', discount || '0');
+      formData.append('status', String(status));
+      formData.append('offer', String(offer));
+      formData.append('coupon', coupon.trim());
+      formData.append('categoryId', selectedCategoryId);
+    }
 
     if (logoFile) {
       formData.append('image', logoFile);
@@ -574,33 +591,59 @@ const ProductForm = () => {
 
                     {/* 4. Available options & pricing grid */}
                     <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-4 bg-slate-50/20 dark:bg-white/1">
-                      <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Pricing & Coupon Offer Configuration</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Pricing & Coupon Offer Configuration</h3>
+                        {isBooksellerMode && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-widest bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <Percent size={9} />
+                            Discount-Only Access
+                          </span>
+                        )}
+                      </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Base Price — read-only for BOOKSELLER */}
                         <div>
                           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
                             <IndianRupee size={10} /> Base Price (RS.) *
                           </label>
-                          <input
-                            type="number"
-                            value={price}
-                            onChange={(e) => setPrice(e.target.value)}
-                            placeholder="180"
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
-                            autoComplete="off"
-                          />
+                          {isBooksellerMode ? (
+                            <div className="w-full bg-slate-100 dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed text-xs">
+                              RS. {parseFloat(price || 0).toFixed(2)}
+                              <span className="ml-2 text-[9px] font-bold text-slate-400 uppercase">read-only</span>
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              value={price}
+                              onChange={(e) => setPrice(e.target.value)}
+                              placeholder="180"
+                              className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                              autoComplete="off"
+                            />
+                          )}
                         </div>
 
+                        {/* Discount — always editable for canEdit roles, highlighted for BOOKSELLER */}
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-0.5">
+                          <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-0.5 ${
+                            isBooksellerMode ? 'text-amber-500' : 'text-slate-400'
+                          }`}>
                             <Percent size={10} /> Discount (%)
+                            {isBooksellerMode && (
+                              <span className="ml-1 px-1 py-0 rounded text-[8px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400">editable</span>
+                            )}
                           </label>
                           <input
                             type="number"
                             value={discount}
                             onChange={(e) => setDiscount(e.target.value)}
                             placeholder="10"
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800 dark:text-slate-100"
+                            className={`w-full border rounded-lg p-2.5 focus:ring-1 focus:outline-none font-semibold ${
+                              isBooksellerMode
+                                ? 'bg-amber-50 dark:bg-amber-500/5 border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 focus:ring-amber-400'
+                                : 'bg-white dark:bg-dark-deep border-slate-200 dark:border-white/5 text-slate-800 dark:text-slate-100 focus:ring-indigo-500'
+                            }`}
                             autoComplete="off"
                           />
                         </div>
@@ -665,13 +708,17 @@ const ProductForm = () => {
                         onClick={() => navigate('/products')}
                         className="flex-1 py-3.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 dark:border-white/5 dark:text-slate-300 dark:hover:bg-white/5 transition-all cursor-pointer text-center"
                       >
-                        Cancel Workspace
+                        Cancel
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-3.5 font-bold text-[10px] uppercase tracking-wider shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all cursor-pointer text-center"
+                        className={`flex-1 text-white rounded-xl py-3.5 font-bold text-[10px] uppercase tracking-wider shadow-lg transition-all cursor-pointer text-center ${
+                          isBooksellerMode
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/20 hover:brightness-110'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-indigo-500/20 hover:brightness-110'
+                        }`}
                       >
-                        {id ? 'Save Changes' : 'Create Product'}
+                        {isBooksellerMode ? 'Save Discount' : id ? 'Save Changes' : 'Create Product'}
                       </button>
                     </div>
 

@@ -390,6 +390,121 @@ export const deleteSpecimenAPI = async (id) => {
   return response.data;
 };
 
+// Master Data Management Services
+export const getMasterDataSummaryAPI = async () => {
+  const response = await api.get('/masterdata/summary');
+  return response.data;
+};
+
+// States
+export const getStatesAPI = async () => {
+  const response = await api.get('/masterdata/states');
+  return response.data;
+};
+export const createStateAPI = async (data) => {
+  const response = await api.post('/masterdata/states', data);
+  return response.data;
+};
+export const updateStateAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/states/${id}`, data);
+  return response.data;
+};
+export const deleteStateAPI = async (id) => {
+  const response = await api.delete(`/masterdata/states/${id}`);
+  return response.data;
+};
+
+// Districts
+export const getDistrictsAPI = async (stateId) => {
+  const response = await api.get('/masterdata/districts', { params: stateId ? { stateId } : {} });
+  return response.data;
+};
+export const createDistrictAPI = async (data) => {
+  const response = await api.post('/masterdata/districts', data);
+  return response.data;
+};
+export const updateDistrictAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/districts/${id}`, data);
+  return response.data;
+};
+export const deleteDistrictAPI = async (id) => {
+  const response = await api.delete(`/masterdata/districts/${id}`);
+  return response.data;
+};
+
+// Zones
+export const getZonesAPI = async (districtId) => {
+  const response = await api.get('/masterdata/zones', { params: districtId ? { districtId } : {} });
+  return response.data;
+};
+export const createZoneAPI = async (data) => {
+  const response = await api.post('/masterdata/zones', data);
+  return response.data;
+};
+export const updateZoneAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/zones/${id}`, data);
+  return response.data;
+};
+export const deleteZoneAPI = async (id) => {
+  const response = await api.delete(`/masterdata/zones/${id}`);
+  return response.data;
+};
+
+// Boards
+export const getSchoolBoardsAPI = async () => {
+  const response = await api.get('/masterdata/boards');
+  return response.data;
+};
+export const createSchoolBoardAPI = async (data) => {
+  const response = await api.post('/masterdata/boards', data);
+  return response.data;
+};
+export const updateSchoolBoardAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/boards/${id}`, data);
+  return response.data;
+};
+export const deleteSchoolBoardAPI = async (id) => {
+  const response = await api.delete(`/masterdata/boards/${id}`);
+  return response.data;
+};
+
+// Schools
+export const getSchoolsAPI = async (params = {}) => {
+  const response = await api.get('/masterdata/schools', { params });
+  return response.data;
+};
+export const createSchoolAPI = async (data) => {
+  const response = await api.post('/masterdata/schools', data);
+  return response.data;
+};
+export const updateSchoolAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/schools/${id}`, data);
+  return response.data;
+};
+export const deleteSchoolAPI = async (id) => {
+  const response = await api.delete(`/masterdata/schools/${id}`);
+  return response.data;
+};
+
+// Teachers
+export const getTeachersAPI = async (params = {}) => {
+  const response = await api.get('/masterdata/teachers', { params });
+  return response.data;
+};
+export const createTeacherAPI = async (data) => {
+  const response = await api.post('/masterdata/teachers', data);
+  return response.data;
+};
+export const updateTeacherAPI = async (id, data) => {
+  const response = await api.put(`/masterdata/teachers/${id}`, data);
+  return response.data;
+};
+export const deleteTeacherAPI = async (id) => {
+  const response = await api.delete(`/masterdata/teachers/${id}`);
+  return response.data;
+};
+
 export default api;
+
 
 

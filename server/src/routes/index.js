@@ -12,6 +12,7 @@ const roleRoutes = require('../features/roles/role.routes');
 const permissionActionRoutes = require('../features/permissions/permission-action.routes');
 const activityRoutes = require('../features/activity/activity.routes');
 const specimenRoutes = require('../features/specimen/specimen.routes');
+const masterDataRoutes = require('../features/masterdata/masterdata.routes');
 
 router.use('/auth', authRoutes);
 router.use('/contacts', contactRoutes);
@@ -24,6 +25,8 @@ router.use('/roles', roleRoutes);
 router.use('/permission-actions', permissionActionRoutes);
 router.use('/activity', activityRoutes);
 router.use('/specimen', specimenRoutes);
+router.use('/masterdata', masterDataRoutes);
+
 
 
 module.exports = router;

@@ -14,6 +14,7 @@ import Products from './pages/Products';
 import ProductForm from './pages/ProductForm';
 import Marketing from './pages/Marketing';
 import SpecimenTracker from './pages/SpecimenTracker';
+import MasterData from './pages/MasterData';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
@@ -182,6 +183,14 @@ const App = () => {
           element={
             <ProtectedRoute menuPath="/specimen">
               <SpecimenTracker />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/master-data"
+          element={
+            <ProtectedRoute menuPath="/master-data">
+              <MasterData />
             </ProtectedRoute>
           }
         />
