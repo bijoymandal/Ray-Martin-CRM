@@ -28,10 +28,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('crm_token');
-      // If we are in the browser, redirect to login page
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      const requestUrl = error.config?.url || '';
+      const isLoginRequest = requestUrl.includes('/auth/login');
+
+      // Don't redirect when the login call itself fails — let the error
+      // propagate back to the login form so we can show "Invalid credentials".
+      if (!isLoginRequest) {
+        localStorage.removeItem('crm_token');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -329,6 +335,19 @@ export const getSettingsAPI = async () => {
 
 export const updateSettingsAPI = async (key, value) => {
   const response = await api.put(`/settings/${key}`, { value });
+  return response.data;
+};
+
+// School Visits Services
+export const createVisitAPI = async (formData) => {
+  const response = await api.post('/visits', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const getVisitsAPI = async (page = 1, limit = 10) => {
+  const response = await api.get('/visits', { params: { page, limit } });
   return response.data;
 };
 
