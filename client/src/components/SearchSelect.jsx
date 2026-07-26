@@ -1,21 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X, Check } from 'lucide-react';
 
 /**
  * SearchSelect — a premium custom select with live search.
- *
- * Props:
- *  - options       : Array<{ value: string, label: string }>
- *  - value         : string (currently selected value)
- *  - onChange      : (value: string) => void
- *  - placeholder   : string  (shown when nothing selected)
- *  - searchPlaceholder : string (inside the search box)
- *  - disabled      : boolean
- *  - label         : string  (shown above the trigger)
- *  - required      : boolean (shows * on label)
- *  - emptyText     : string  (shown when no options match)
- *  - icon          : ReactNode (optional icon shown on trigger)
- *  - accentColor   : 'indigo' | 'emerald' | 'purple' | 'cyan'  (default indigo)
  */
 const SearchSelect = ({
   options = [],
@@ -29,12 +17,15 @@ const SearchSelect = ({
   emptyText = 'No results found',
   icon,
   accentColor = 'indigo',
+  align = 'auto', // 'left' | 'right' | 'auto'
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 220 });
 
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
   const searchRef = useRef(null);
   const listRef = useRef(null);
 
@@ -114,10 +105,43 @@ const SearchSelect = ({
 
   const selectedOption = options.find((opt) => opt.value === value);
 
+  // Position calculation for portal
+  const updateCoords = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const panelWidth = Math.max(rect.width, 220);
+
+      let left = rect.left;
+      if (align === 'right' || (align === 'auto' && !label && left + panelWidth > window.innerWidth - 16)) {
+        left = Math.max(16, rect.right - panelWidth);
+      }
+
+      let top = rect.bottom + 6;
+      const estimatedHeight = Math.min(options.length * 36 + 60, 280);
+      if (top + estimatedHeight > window.innerHeight - 16) {
+        top = Math.max(16, rect.top - estimatedHeight - 6);
+      }
+
+      setCoords({ top, left, width: panelWidth });
+    }
+  }, [align, label, options.length]);
+
+  useEffect(() => {
+    if (open) {
+      updateCoords();
+      window.addEventListener('resize', updateCoords);
+      window.addEventListener('scroll', updateCoords, true);
+      return () => {
+        window.removeEventListener('resize', updateCoords);
+        window.removeEventListener('scroll', updateCoords, true);
+      };
+    }
+  }, [open, updateCoords]);
+
   // Close on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (containerRef.current && !containerRef.current.contains(e.target) && !e.target.closest('[data-searchselect-portal]')) {
         setOpen(false);
         setSearch('');
         setHighlightedIndex(-1);
@@ -193,7 +217,7 @@ const SearchSelect = ({
   };
 
   return (
-    <div className="flex flex-col gap-1.5" ref={containerRef}>
+    <div className={label ? 'flex flex-col gap-1.5' : 'relative'} ref={containerRef}>
       {/* Label */}
       {label && (
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider dark:text-slate-500 select-none">
@@ -202,11 +226,9 @@ const SearchSelect = ({
         </label>
       )}
 
-      {/* Relative wrapper keeps trigger + panel together */}
-      <div className="relative">
-
       {/* Trigger button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
@@ -214,14 +236,14 @@ const SearchSelect = ({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={[
-          'relative w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold',
+          'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-xs font-semibold',
           'transition-all duration-200 outline-none text-left',
           'bg-white dark:bg-dark-input',
           'shadow-sm',
           disabled
             ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-white/5 text-slate-400'
             : open
-            ? `cursor-pointer border-2 ${accent.ring} ring-4`
+            ? `cursor-pointer border-2 ${accent.ring} ring-2`
             : 'cursor-pointer border-slate-200 dark:border-white/8 text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-white/15',
         ].join(' ')}
       >
@@ -231,9 +253,9 @@ const SearchSelect = ({
         )}
 
         {/* Selected value or placeholder */}
-        <span className={`flex-1 truncate ${selectedOption ? '' : 'text-slate-400 dark:text-slate-500'}`}>
+        <span className={`flex-1 truncate ${selectedOption ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
           {selectedOption ? (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold ${accent.badge}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-extrabold ${accent.badge}`}>
               {selectedOption.label}
             </span>
           ) : (
@@ -261,19 +283,24 @@ const SearchSelect = ({
         />
       </button>
 
-      {/* Dropdown panel */}
-      {open && (
-        <div
-          className={[
-            'absolute z-50 mt-1 w-full min-w-[200px] rounded-2xl border shadow-2xl',
-            'bg-white dark:bg-dark-card',
-            'border-slate-200/80 dark:border-white/8',
-            'shadow-slate-200/60 dark:shadow-black/60',
-            'overflow-hidden',
-            'animate-slide-up',
-          ].join(' ')}
-          style={{ top: '100%', left: 0 }}
-        >
+      {/* Dropdown panel rendered via React Portal into document.body to prevent ANY container clipping */}
+      {open &&
+        createPortal(
+          <div
+            data-searchselect-portal="true"
+            className={[
+              'fixed z-[99999] rounded-2xl border shadow-2xl animate-slide-up',
+              'bg-white dark:bg-dark-card',
+              'border-slate-200/90 dark:border-white/10',
+              'shadow-slate-400/40 dark:shadow-black/90',
+              'overflow-hidden',
+            ].join(' ')}
+            style={{
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              width: `${coords.width}px`,
+            }}
+          >
           {/* Search box */}
           {options.length > 5 && (
             <div className="p-2 border-b border-slate-100 dark:border-white/5">
@@ -376,9 +403,9 @@ const SearchSelect = ({
               )}
             </div>
           )}
-        </div>
-      )}
-      </div>{/* end relative wrapper */}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
