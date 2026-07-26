@@ -39,7 +39,7 @@ const SearchSelect = ({
   const listRef = useRef(null);
 
   // Accent color maps
-  const accent = {
+  const accentMaps = {
     indigo: {
       ring: 'ring-indigo-500/30 border-indigo-400',
       badge: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-300',
@@ -72,7 +72,41 @@ const SearchSelect = ({
       check: 'text-cyan-500',
       searchFocus: 'focus:ring-cyan-500/20 focus:border-cyan-400',
     },
-  }[accentColor];
+    amber: {
+      ring: 'ring-amber-500/30 border-amber-400',
+      badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-300',
+      item: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+      highlight: 'bg-slate-100 dark:bg-white/5',
+      check: 'text-amber-500',
+      searchFocus: 'focus:ring-amber-500/20 focus:border-amber-400',
+    },
+    rose: {
+      ring: 'ring-rose-500/30 border-rose-400',
+      badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-300',
+      item: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300',
+      highlight: 'bg-slate-100 dark:bg-white/5',
+      check: 'text-rose-500',
+      searchFocus: 'focus:ring-rose-500/20 focus:border-rose-400',
+    },
+    pink: {
+      ring: 'ring-pink-500/30 border-pink-400',
+      badge: 'bg-pink-500/10 text-pink-600 dark:text-pink-300',
+      item: 'bg-pink-50 dark:bg-pink-500/10 text-pink-700 dark:text-pink-300',
+      highlight: 'bg-slate-100 dark:bg-white/5',
+      check: 'text-pink-500',
+      searchFocus: 'focus:ring-pink-500/20 focus:border-pink-400',
+    },
+    blue: {
+      ring: 'ring-blue-500/30 border-blue-400',
+      badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-300',
+      item: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300',
+      highlight: 'bg-slate-100 dark:bg-white/5',
+      check: 'text-blue-500',
+      searchFocus: 'focus:ring-blue-500/20 focus:border-blue-400',
+    },
+  };
+
+  const accent = accentMaps[accentColor] || accentMaps.indigo;
 
   const filtered = options.filter((opt) =>
     opt.label.toLowerCase().includes(search.toLowerCase())

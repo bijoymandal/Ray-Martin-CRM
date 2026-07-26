@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import SearchSelect from '../components/SearchSelect';
 import {
   getUsersAPI,
   updateUserRoleAPI,
@@ -1003,17 +1004,16 @@ const Admin = () => {
                             ) : (
                               <div className="inline-flex items-center gap-2">
                                 <Shield size={14} className="text-slate-400 dark:text-slate-500" />
-                                <select
+                                <SearchSelect
+                                  placeholder="Select Role"
+                                  options={roles.map((r) => ({
+                                    value: r.name,
+                                    label: r.name.charAt(0) + r.name.slice(1).toLowerCase(),
+                                  }))}
                                   value={u.role}
-                                  onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                  className="glass-input py-1.5 pr-8 text-xs cursor-pointer min-w-[140px] bg-none"
-                                >
-                                  {roles.map((r) => (
-                                    <option key={r.id || r.name} value={r.name}>
-                                      {r.name.charAt(0) + r.name.slice(1).toLowerCase()}
-                                    </option>
-                                  ))}
-                                </select>
+                                  onChange={(v) => handleRoleChange(u.id, v)}
+                                  accentColor="indigo"
+                                />
                               </div>
                             )}
                           </td>
@@ -1153,20 +1153,24 @@ const Admin = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Icon Name</label>
-                            <select
+                            <SearchSelect
+                              label="Icon Name"
+                              placeholder="Select Icon..."
+                              options={[
+                                { value: 'LayoutDashboard', label: 'Dashboard' },
+                                { value: 'Users', label: 'Users' },
+                                { value: 'CircleDollarSign', label: 'Dollar Sign' },
+                                { value: 'Settings', label: 'Settings/Gear' },
+                                { value: 'HelpCircle', label: 'Help Circle' },
+                                { value: 'Shield', label: 'Shield' },
+                                { value: 'Briefcase', label: 'Briefcase' },
+                                { value: 'BookOpen', label: 'Book Open' },
+                                { value: 'MapPin', label: 'Map Pin' },
+                              ]}
                               value={newMenu.iconName}
-                              onChange={(e) => setNewMenu({ ...newMenu, iconName: e.target.value })}
-                              className="glass-input w-full px-3 py-2.5 text-xs bg-none"
-                            >
-                              <option value="LayoutDashboard">Dashboard</option>
-                              <option value="Users">Users</option>
-                              <option value="CircleDollarSign">Dollar Sign</option>
-                              <option value="Settings">Settings/Gear</option>
-                              <option value="HelpCircle">Help Circle</option>
-                              <option value="Shield">Shield</option>
-                              <option value="Briefcase">Briefcase</option>
-                            </select>
+                              onChange={(v) => setNewMenu({ ...newMenu, iconName: v })}
+                              accentColor="indigo"
+                            />
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sort Order</label>
@@ -1286,32 +1290,24 @@ const Admin = () => {
                       </h3>
                       <form onSubmit={handleTransferSubmit} className="flex flex-col gap-4" autoComplete="off">
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">From Source Role</label>
-                          <select
+                          <SearchSelect
+                            label="From Source Role"
+                            placeholder="Select Source Role..."
+                            options={rolesList.map((r) => ({ value: r, label: r }))}
                             value={transfer.fromRole}
-                            onChange={(e) => setTransfer({ ...transfer, fromRole: e.target.value })}
-                            className="glass-input w-full px-3 py-2 text-xs bg-none font-semibold"
-                          >
-                            {rolesList.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(v) => setTransfer({ ...transfer, fromRole: v })}
+                            accentColor="purple"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">To Target Role</label>
-                          <select
+                          <SearchSelect
+                            label="To Target Role"
+                            placeholder="Select Target Role..."
+                            options={rolesList.map((r) => ({ value: r, label: r }))}
                             value={transfer.toRole}
-                            onChange={(e) => setTransfer({ ...transfer, toRole: e.target.value })}
-                            className="glass-input w-full px-3 py-2 text-xs bg-none font-semibold"
-                          >
-                            {rolesList.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(v) => setTransfer({ ...transfer, toRole: v })}
+                            accentColor="purple"
+                          />
                         </div>
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Transfer Action</label>

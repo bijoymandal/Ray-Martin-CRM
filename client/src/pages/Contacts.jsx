@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import SearchSelect from '../components/SearchSelect';
 import { getContactsAPI, createContactAPI, updateContactAPI, deleteContactAPI } from '../services/api';
 import { Plus, Search, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -225,17 +226,20 @@ const Contacts = () => {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-slate-500 font-medium dark:text-slate-400">Status:</span>
-              <select
+              <SearchSelect
+                placeholder="All Statuses"
+                searchPlaceholder="Filter status..."
+                options={[
+                  { value: 'ALL', label: 'All Statuses' },
+                  { value: 'LEAD', label: 'Leads' },
+                  { value: 'PROSPECT', label: 'Prospects' },
+                  { value: 'CUSTOMER', label: 'Customers' },
+                  { value: 'INACTIVE', label: 'Inactive' },
+                ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="glass-input min-w-[150px] py-2 cursor-pointer"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="LEAD">Leads</option>
-                <option value="PROSPECT">Prospects</option>
-                <option value="CUSTOMER">Customers</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
+                onChange={setStatusFilter}
+                accentColor="indigo"
+              />
             </div>
           </div>
 
@@ -433,20 +437,19 @@ const Contacts = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status</label>
-                    <select
-                      name="status"
+                    <SearchSelect
+                      label="Status"
+                      placeholder="Select status..."
+                      options={[
+                        { value: 'LEAD', label: 'Lead' },
+                        { value: 'PROSPECT', label: 'Prospect' },
+                        { value: 'CUSTOMER', label: 'Customer' },
+                        { value: 'INACTIVE', label: 'Inactive' },
+                      ]}
                       value={formData.status}
-                      onChange={handleInputChange}
-                      className="glass-input py-2 cursor-pointer"
-                    >
-                      <option value="LEAD">Lead</option>
-                      <option value="PROSPECT">Prospect</option>
-                      <option value="CUSTOMER">Customer</option>
-                      <option value="INACTIVE">Inactive</option>
-                    </select>
-                  </div>
+                      onChange={(v) => setFormData({ ...formData, status: v })}
+                      accentColor="indigo"
+                    />
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Notes</label>

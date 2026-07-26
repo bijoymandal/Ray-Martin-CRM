@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import SearchSelect from '../components/SearchSelect';
 import { getDealsAPI, createDealAPI, updateDealAPI, deleteDealAPI, getContactsAPI } from '../services/api';
 import { Plus, Edit2, Trash2, X, AlertCircle, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -381,39 +382,36 @@ const Deals = () => {
                       </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Stage</label>
-                      <select
-                        name="stage"
-                        value={formData.stage}
-                        onChange={handleInputChange}
-                        className="glass-input py-2.5 cursor-pointer"
-                      >
-                        <option value="QUALIFICATION">Qualification</option>
-                        <option value="PROPOSAL">Proposal</option>
-                        <option value="NEGOTIATION">Negotiation</option>
-                        <option value="CLOSED_WON">Closed Won</option>
-                        <option value="CLOSED_LOST">Closed Lost</option>
-                      </select>
-                    </div>
+                    <SearchSelect
+                      label="Stage"
+                      placeholder="Select stage..."
+                      options={[
+                        { value: 'QUALIFICATION', label: 'Qualification' },
+                        { value: 'PROPOSAL', label: 'Proposal' },
+                        { value: 'NEGOTIATION', label: 'Negotiation' },
+                        { value: 'CLOSED_WON', label: 'Closed Won' },
+                        { value: 'CLOSED_LOST', label: 'Closed Lost' },
+                      ]}
+                      value={formData.stage}
+                      onChange={(v) => setFormData({ ...formData, stage: v })}
+                      accentColor="indigo"
+                    />
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Linked Contact *</label>
-                    <select
-                      name="contactId"
-                      value={formData.contactId}
-                      onChange={handleInputChange}
-                      className="glass-input py-2.5 cursor-pointer"
-                      required
-                    >
-                      {contacts.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.firstName} {c.lastName} ({c.company || 'No Company'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchSelect
+                    label="Linked Contact"
+                    required
+                    placeholder="Select Contact..."
+                    searchPlaceholder="Search contacts..."
+                    options={contacts.map((c) => ({
+                      value: c.id,
+                      label: `${c.firstName} ${c.lastName} (${c.company || 'No Company'})`,
+                    }))}
+                    value={formData.contactId}
+                    onChange={(v) => setFormData({ ...formData, contactId: v })}
+                    accentColor="indigo"
+                  />
+
 
                   <div className="flex justify-end gap-3 mt-6">
                     <button

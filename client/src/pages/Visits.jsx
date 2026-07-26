@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import SearchSelect from '../components/SearchSelect';
 import { createVisitAPI, getVisitsAPI } from '../services/api';
 import { Plus, Search, MapPin, Calendar, User, Building2, FileText, X, AlertCircle, ChevronLeft, ChevronRight, Upload, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -202,18 +203,20 @@ const Visits = () => {
                 className="glass-input pl-9 text-sm"
               />
             </div>
-            <select
-              id="select-status-filter"
+            <SearchSelect
+              placeholder="All Statuses"
+              searchPlaceholder="Filter status..."
+              options={[
+                { value: 'ALL', label: 'All Statuses' },
+                { value: 'SCHEDULED', label: 'Scheduled' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'CANCELLED', label: 'Cancelled' },
+              ]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="glass-input w-full sm:w-44 text-sm"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="PENDING">Pending</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
+              onChange={setStatusFilter}
+              accentColor="indigo"
+            />
           </div>
 
           {/* Table */}
@@ -440,21 +443,19 @@ const Visits = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                    Status
-                  </label>
-                  <select
-                    id="select-visit-status"
-                    name="status"
+                  <SearchSelect
+                    label="Status"
+                    placeholder="Select status..."
+                    options={[
+                      { value: 'SCHEDULED', label: 'Scheduled' },
+                      { value: 'COMPLETED', label: 'Completed' },
+                      { value: 'PENDING', label: 'Pending' },
+                      { value: 'CANCELLED', label: 'Cancelled' },
+                    ]}
                     value={formData.status}
-                    onChange={handleChange}
-                    className="glass-input text-sm"
-                  >
-                    <option value="SCHEDULED">Scheduled</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="CANCELLED">Cancelled</option>
-                  </select>
+                    onChange={(v) => setFormData({ ...formData, status: v })}
+                    accentColor="indigo"
+                  />
                 </div>
               </div>
 
