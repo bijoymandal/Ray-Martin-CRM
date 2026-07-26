@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { getBoardsAPI, getClassesAPI, getSubjectsAPI, getCategoriesAPI, getProductsAPI, createProductAPI, updateProductAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { Upload, X, ArrowLeft, Image, Percent, Tag, IndianRupee, Check, Eye } from 'lucide-react';
+import SearchSelect from '../components/SearchSelect';
+import { Upload, X, ArrowLeft, Percent, Tag, IndianRupee, Check, Eye, BookOpen, GraduationCap, FlaskConical, Layers } from 'lucide-react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
@@ -484,69 +485,90 @@ const ProductForm = () => {
                       </div>
                     </div>
 
-                    {/* 3. Dropdown lists grouped together */}
-                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-3 bg-slate-50/30 dark:bg-white/1">
-                      <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest mb-1.5">Educational Taxonomy Paths</h3>
-                      
+                    {/* 3. Dropdown lists — SearchSelect with live search */}
+                    <div className="glass-card p-5 border-slate-200/60 dark:border-white/5 space-y-4 bg-slate-50/30 dark:bg-white/1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/10">
+                          <GraduationCap size={13} className="text-indigo-500" />
+                        </div>
+                        <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">Educational Taxonomy Path</h3>
+                      </div>
+
+                      {/* Cascade breadcrumb trail */}
+                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-wider flex-wrap">
+                        <span className={selectedBoardId ? 'text-indigo-500' : ''}>
+                          {boards.find(b => b.id === selectedBoardId)?.name || 'Board'}
+                        </span>
+                        <span>›</span>
+                        <span className={selectedClassId ? 'text-purple-500' : ''}>
+                          {filteredClasses.find(c => c.id === selectedClassId)?.name || 'Class'}
+                        </span>
+                        <span>›</span>
+                        <span className={selectedSubjectId ? 'text-cyan-500' : ''}>
+                          {filteredSubjects.find(s => s.id === selectedSubjectId)?.name || 'Subject'}
+                        </span>
+                        <span>›</span>
+                        <span className={selectedCategoryId ? 'text-emerald-500' : ''}>
+                          {filteredCategories.find(c => c.id === selectedCategoryId)?.name || 'Category'}
+                        </span>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Board</label>
-                          <select
-                            value={selectedBoardId}
-                            onChange={(e) => handleBoardChange(e.target.value)}
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                          >
-                            <option value="">-- Choose Board --</option>
-                            {boards.map((b) => (
-                              <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Board */}
+                        <SearchSelect
+                          label="Board"
+                          placeholder="Choose a board..."
+                          searchPlaceholder="Search boards..."
+                          options={boards.map(b => ({ value: b.id, label: b.name }))}
+                          value={selectedBoardId}
+                          onChange={handleBoardChange}
+                          accentColor="indigo"
+                          icon={<BookOpen size={13} />}
+                          emptyText="No boards available"
+                        />
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Class</label>
-                          <select
-                            value={selectedClassId}
-                            disabled={!selectedBoardId}
-                            onChange={(e) => handleClassChange(e.target.value)}
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                          >
-                            <option value="">-- Choose Class --</option>
-                            {filteredClasses.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Class */}
+                        <SearchSelect
+                          label="Class"
+                          placeholder={selectedBoardId ? 'Choose a class...' : 'Select a board first'}
+                          searchPlaceholder="Search classes..."
+                          options={filteredClasses.map(c => ({ value: c.id, label: c.name }))}
+                          value={selectedClassId}
+                          onChange={handleClassChange}
+                          disabled={!selectedBoardId}
+                          accentColor="purple"
+                          icon={<GraduationCap size={13} />}
+                          emptyText="No classes for this board"
+                        />
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Subject</label>
-                          <select
-                            value={selectedSubjectId}
-                            disabled={!selectedClassId}
-                            onChange={(e) => handleSubjectChange(e.target.value)}
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                          >
-                            <option value="">-- Choose Subject --</option>
-                            {filteredSubjects.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Subject */}
+                        <SearchSelect
+                          label="Subject"
+                          placeholder={selectedClassId ? 'Choose a subject...' : 'Select a class first'}
+                          searchPlaceholder="Search subjects..."
+                          options={filteredSubjects.map(s => ({ value: s.id, label: s.name }))}
+                          value={selectedSubjectId}
+                          onChange={handleSubjectChange}
+                          disabled={!selectedClassId}
+                          accentColor="cyan"
+                          icon={<FlaskConical size={13} />}
+                          emptyText="No subjects for this class"
+                        />
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Category *</label>
-                          <select
-                            value={selectedCategoryId}
-                            disabled={!selectedSubjectId}
-                            onChange={(e) => setSelectedCategoryId(e.target.value)}
-                            className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/5 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50 font-bold text-indigo-600 dark:text-indigo-400"
-                          >
-                            <option value="">-- Choose Category --</option>
-                            {filteredCategories.map((cat) => (
-                              <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Category */}
+                        <SearchSelect
+                          label="Category"
+                          required
+                          placeholder={selectedSubjectId ? 'Choose a category...' : 'Select a subject first'}
+                          searchPlaceholder="Search categories..."
+                          options={filteredCategories.map(c => ({ value: c.id, label: c.name }))}
+                          value={selectedCategoryId}
+                          onChange={setSelectedCategoryId}
+                          disabled={!selectedSubjectId}
+                          accentColor="emerald"
+                          icon={<Layers size={13} />}
+                          emptyText="No categories for this subject"
+                        />
                       </div>
                     </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import SearchSelect from '../components/SearchSelect';
 import {
   getBoardsAPI, createBoardAPI, updateBoardAPI, deleteBoardAPI,
   getClassesAPI, createClassAPI, updateClassAPI, deleteClassAPI,
@@ -583,44 +584,44 @@ const Academy = () => {
                     {/* Dependent Dropdowns in Edit mode */}
                     {activeTab === 'classes' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Board</label>
-                        <select
-                          value={editForm.boardId}
-                          onChange={(e) => setEditForm({ ...editForm, boardId: e.target.value })}
-                          className="glass-input w-full px-3 py-2.5 text-xs bg-none"
+                        <SearchSelect
+                          label="Board"
                           required
-                        >
-                          <option value="">-- Choose Board --</option>
-                          {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                          placeholder="Choose a board..."
+                          searchPlaceholder="Search boards..."
+                          options={boards.map(b => ({ value: b.id, label: b.name }))}
+                          value={editForm.boardId}
+                          onChange={(v) => setEditForm({ ...editForm, boardId: v })}
+                          accentColor="indigo"
+                        />
                       </div>
                     )}
                     {activeTab === 'subjects' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Class</label>
-                        <select
-                          value={editForm.classId}
-                          onChange={(e) => setEditForm({ ...editForm, classId: e.target.value })}
-                          className="glass-input w-full px-3 py-2.5 text-xs bg-none"
+                        <SearchSelect
+                          label="Class"
                           required
-                        >
-                          <option value="">-- Choose Class --</option>
-                          {classes.map((c) => <option key={c.id} value={c.id}>{c.board?.name} → {c.name}</option>)}
-                        </select>
+                          placeholder="Choose a class..."
+                          searchPlaceholder="Search classes..."
+                          options={classes.map(c => ({ value: c.id, label: `${c.board?.name} → ${c.name}` }))}
+                          value={editForm.classId}
+                          onChange={(v) => setEditForm({ ...editForm, classId: v })}
+                          accentColor="purple"
+                        />
                       </div>
                     )}
                     {activeTab === 'categories' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Subject</label>
-                        <select
-                          value={editForm.subjectId}
-                          onChange={(e) => setEditForm({ ...editForm, subjectId: e.target.value })}
-                          className="glass-input w-full px-3 py-2.5 text-xs bg-none"
+                        <SearchSelect
+                          label="Subject"
                           required
-                        >
-                          <option value="">-- Choose Subject --</option>
-                          {subjects.map((s) => <option key={s.id} value={s.id}>{s.class?.board?.shortName} → {s.class?.name} → {s.name}</option>)}
-                        </select>
+                          placeholder="Choose a subject..."
+                          searchPlaceholder="Search subjects..."
+                          options={subjects.map(s => ({ value: s.id, label: `${s.class?.board?.shortName} → ${s.class?.name} → ${s.name}` }))}
+                          value={editForm.subjectId}
+                          onChange={(v) => setEditForm({ ...editForm, subjectId: v })}
+                          accentColor="cyan"
+                        />
                       </div>
                     )}
 
@@ -721,50 +722,48 @@ const Academy = () => {
                     {/* Dependent dropdown selection triggers */}
                     {activeTab === 'classes' && (
                       <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Board</label>
-                        <select
-                          value={selectedBoardId}
-                          onChange={(e) => setSelectedBoardId(e.target.value)}
-                          className="glass-input w-full px-3 py-2.5 text-xs bg-none"
+                        <SearchSelect
+                          label="Board"
                           required
-                        >
-                          <option value="">-- Choose Board --</option>
-                          {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                          placeholder="Choose a board..."
+                          searchPlaceholder="Search boards..."
+                          options={boards.map(b => ({ value: b.id, label: b.name }))}
+                          value={selectedBoardId}
+                          onChange={(v) => setSelectedBoardId(v)}
+                          accentColor="indigo"
+                        />
                       </div>
                     )}
 
                     {activeTab === 'subjects' && (
                       <>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Board</label>
-                          <select
-                            value={selectedBoardId}
-                            onChange={(e) => {
-                              setSelectedBoardId(e.target.value);
-                              setSelectedClassId(''); // Reset Class selection
-                            }}
-                            className="glass-input w-full px-3 py-2.5 text-xs bg-none"
+                          <SearchSelect
+                            label="Board"
                             required
-                          >
-                            <option value="">-- Choose Board --</option>
-                            {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                          </select>
+                            placeholder="Choose a board..."
+                            searchPlaceholder="Search boards..."
+                            options={boards.map(b => ({ value: b.id, label: b.name }))}
+                            value={selectedBoardId}
+                            onChange={(v) => {
+                              setSelectedBoardId(v);
+                              setSelectedClassId('');
+                            }}
+                            accentColor="indigo"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Class (Dependent)</label>
-                          <select
-                            value={selectedClassId}
-                            onChange={(e) => setSelectedClassId(e.target.value)}
-                            disabled={!selectedBoardId}
-                            className="glass-input w-full px-3 py-2.5 text-xs bg-none disabled:opacity-40 disabled:cursor-not-allowed"
+                          <SearchSelect
+                            label="Class"
                             required
-                          >
-                            <option value="">-- Choose Class --</option>
-                            {classes
-                              .filter((c) => c.boardId === selectedBoardId)
-                              .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
+                            placeholder={selectedBoardId ? 'Choose a class...' : 'Select a board first'}
+                            searchPlaceholder="Search classes..."
+                            options={classes.filter(c => c.boardId === selectedBoardId).map(c => ({ value: c.id, label: c.name }))}
+                            value={selectedClassId}
+                            onChange={(v) => setSelectedClassId(v)}
+                            disabled={!selectedBoardId}
+                            accentColor="purple"
+                          />
                         </div>
                       </>
                     )}
@@ -772,53 +771,49 @@ const Academy = () => {
                     {activeTab === 'categories' && (
                       <>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Board</label>
-                          <select
+                          <SearchSelect
+                            label="Board"
+                            required
+                            placeholder="Choose a board..."
+                            searchPlaceholder="Search boards..."
+                            options={boards.map(b => ({ value: b.id, label: b.name }))}
                             value={selectedBoardId}
-                            onChange={(e) => {
-                              setSelectedBoardId(e.target.value);
+                            onChange={(v) => {
+                              setSelectedBoardId(v);
                               setSelectedClassId('');
                               setSelectedSubjectId('');
                             }}
-                            className="glass-input w-full px-3 py-2.5 text-xs bg-none"
-                            required
-                          >
-                            <option value="">-- Choose Board --</option>
-                            {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                          </select>
+                            accentColor="indigo"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Class (Dependent)</label>
-                          <select
+                          <SearchSelect
+                            label="Class"
+                            required
+                            placeholder={selectedBoardId ? 'Choose a class...' : 'Select a board first'}
+                            searchPlaceholder="Search classes..."
+                            options={classes.filter(c => c.boardId === selectedBoardId).map(c => ({ value: c.id, label: c.name }))}
                             value={selectedClassId}
-                            onChange={(e) => {
-                              setSelectedClassId(e.target.value);
+                            onChange={(v) => {
+                              setSelectedClassId(v);
                               setSelectedSubjectId('');
                             }}
                             disabled={!selectedBoardId}
-                            className="glass-input w-full px-3 py-2.5 text-xs bg-none disabled:opacity-40 disabled:cursor-not-allowed"
-                            required
-                          >
-                            <option value="">-- Choose Class --</option>
-                            {classes
-                              .filter((c) => c.boardId === selectedBoardId)
-                              .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
+                            accentColor="purple"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Subject (Dependent)</label>
-                          <select
-                            value={selectedSubjectId}
-                            onChange={(e) => setSelectedSubjectId(e.target.value)}
-                            disabled={!selectedClassId}
-                            className="glass-input w-full px-3 py-2.5 text-xs bg-none disabled:opacity-40 disabled:cursor-not-allowed"
+                          <SearchSelect
+                            label="Subject"
                             required
-                          >
-                            <option value="">-- Choose Subject --</option>
-                            {subjects
-                              .filter((s) => s.classId === selectedClassId)
-                              .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
+                            placeholder={selectedClassId ? 'Choose a subject...' : 'Select a class first'}
+                            searchPlaceholder="Search subjects..."
+                            options={subjects.filter(s => s.classId === selectedClassId).map(s => ({ value: s.id, label: s.name }))}
+                            value={selectedSubjectId}
+                            onChange={(v) => setSelectedSubjectId(v)}
+                            disabled={!selectedClassId}
+                            accentColor="cyan"
+                          />
                         </div>
                       </>
                     )}
