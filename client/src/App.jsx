@@ -15,6 +15,7 @@ import ProductForm from './pages/ProductForm';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import Visits from './pages/Visits';
 
 // Protected Route Component (Database-driven Dynamic RBAC)
 const ProtectedRoute = ({ children, menuPath, action }) => {
@@ -154,6 +155,15 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/visits"
+          element={
+            <ProtectedRoute menuPath="/visits">
+              <Visits />
             </ProtectedRoute>
           }
         />
