@@ -1,8 +1,12 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { GuideProvider } from './context/GuideContext';
 import { LockScreen } from './components/LockScreen';
 import { logVisitAPI } from './services/api';
+import UserGuideModal from './components/guide/UserGuideModal';
+import InteractiveTour from './components/guide/InteractiveTour';
+import WelcomeOnboardingModal from './components/guide/WelcomeOnboardingModal';
 
 // Import Pages
 import Dashboard from './pages/Dashboard';
@@ -84,141 +88,146 @@ const ProtectedRoute = ({ children, menuPath, action }) => {
 
 const App = () => {
   return (
-    <LockScreen>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <GuideProvider>
+      <LockScreen>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* Protected Dashboard/App Routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute menuPath="/">
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <ProtectedRoute menuPath="/contacts">
-              <Contacts />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/deals"
-          element={
-            <ProtectedRoute menuPath="/deals">
-              <Deals />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute menuPath="/admin">
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/academy"
-          element={
-            <ProtectedRoute menuPath="/academy">
-              <Academy />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/products"
-          element={
-            <ProtectedRoute menuPath="/products" action="canView">
-              <Products />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/products/form"
-          element={
-            <ProtectedRoute menuPath="/products" action="canCreate">
-              <ProductForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/products/form/:id"
-          element={
-            <ProtectedRoute menuPath="/products" action="canEdit">
-              <ProductForm />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Dashboard/App Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute menuPath="/">
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              <ProtectedRoute menuPath="/contacts">
+                <Contacts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deals"
+            element={
+              <ProtectedRoute menuPath="/deals">
+                <Deals />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute menuPath="/admin">
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/academy"
+            element={
+              <ProtectedRoute menuPath="/academy">
+                <Academy />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute menuPath="/products" action="canView">
+                <Products />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products/form"
+            element={
+              <ProtectedRoute menuPath="/products" action="canCreate">
+                <ProductForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products/form/:id"
+            element={
+              <ProtectedRoute menuPath="/products" action="canEdit">
+                <ProductForm />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/visits"
-          element={
-            <ProtectedRoute menuPath="/visits">
-              <Visits />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/marketing"
-          element={
-            <ProtectedRoute menuPath="/marketing">
-              <Marketing />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/specimen"
-          element={
-            <ProtectedRoute menuPath="/specimen">
-              <SpecimenTracker />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/master-data"
-          element={
-            <ProtectedRoute menuPath="/master-data">
-              <MasterData />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/stock"
-          element={
-            <ProtectedRoute menuPath="/stock">
-              <StockManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tasks"
-          element={
-            <ProtectedRoute menuPath="/tasks">
-              <TaskManagement />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/visits"
+            element={
+              <ProtectedRoute menuPath="/visits">
+                <Visits />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketing"
+            element={
+              <ProtectedRoute menuPath="/marketing">
+                <Marketing />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/specimen"
+            element={
+              <ProtectedRoute menuPath="/specimen">
+                <SpecimenTracker />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master-data"
+            element={
+              <ProtectedRoute menuPath="/master-data">
+                <MasterData />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock"
+            element={
+              <ProtectedRoute menuPath="/stock">
+                <StockManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute menuPath="/tasks">
+                <TaskManagement />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Fallback Route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <TaskNotificationPopup />
-    </LockScreen>
+          {/* Fallback Route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <TaskNotificationPopup />
+        <UserGuideModal />
+        <InteractiveTour />
+        <WelcomeOnboardingModal />
+      </LockScreen>
+    </GuideProvider>
   );
 };
 

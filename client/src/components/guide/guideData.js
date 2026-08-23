@@ -1,0 +1,416 @@
+export const CRM_MODULES = [
+  {
+    id: 'dashboard',
+    name: 'Dashboard Overview',
+    path: '/',
+    icon: 'LayoutDashboard',
+    category: 'Core CRM',
+    badge: 'Main Hub',
+    color: 'from-blue-500 to-indigo-600',
+    tagline: 'High-level business intelligence & executive metrics.',
+    description:
+      'The central control center displaying real-time KPI metrics, active deals, pipeline distribution, recent activity logs, and actionable shortcuts.',
+    keyFeatures: [
+      'Live KPI summary metrics (Total Revenue, Active Deals, Won Deals, Conversion Rate)',
+      'Visual Deal Pipeline Stage Breakdown and conversion trends',
+      'Recent System Activity & visit logging stream',
+      'Quick Navigation to daily operational workflows',
+    ],
+    roles: ['All Roles'],
+    workflowTip: 'Check your dashboard every morning to review deal progressions and high-priority pending tasks.',
+  },
+  {
+    id: 'contacts',
+    name: 'Contacts & Leads',
+    path: '/contacts',
+    icon: 'Users',
+    category: 'Core CRM',
+    badge: 'Client Directory',
+    color: 'from-emerald-500 to-teal-600',
+    tagline: 'Comprehensive customer relationship and contact database.',
+    description:
+      'Manage prospect profiles, school decision-makers, educators, and enterprise partners with pagination, dynamic search, and action permissions.',
+    keyFeatures: [
+      'Create, edit, and organize individual and organization contacts',
+      'Instant search by Name, Email, Organization, or Phone number',
+      'Detailed contact history, associated deals, and communication status',
+      'Granular permission checks (canView, canCreate, canEdit, canDelete)',
+    ],
+    roles: ['All Roles'],
+    workflowTip: 'Keep contact phone numbers and school affiliations updated to ensure smooth specimen delivery and visit logs.',
+  },
+  {
+    id: 'deals',
+    name: 'Deals & Sales Pipeline',
+    path: '/deals',
+    icon: 'Briefcase',
+    category: 'Core CRM',
+    badge: 'Revenue Tracker',
+    color: 'from-purple-500 to-pink-600',
+    tagline: 'Interactive deal tracking through multi-stage sales funnels.',
+    description:
+      'Track deal values, stage progressions (Lead, Proposal, Negotiation, Closed Won, Closed Lost), expected close dates, and sales velocity.',
+    keyFeatures: [
+      'Stage-by-stage sales funnel tracking with real-time value aggregations',
+      'Assign deals to specific contacts and sales representatives',
+      'Win/Loss tracking and expected closing probability analytics',
+      'Integrated status updates with automatic activity logging',
+    ],
+    roles: ['All Roles'],
+    workflowTip: 'Move deals into "Proposal" only after academic sample books and pricing proposals have been presented.',
+  },
+  {
+    id: 'specimen',
+    name: 'Specimen Tracker',
+    path: '/specimen',
+    icon: 'BookOpen',
+    category: 'Operations',
+    badge: 'Sample Tracking',
+    color: 'from-amber-500 to-orange-600',
+    tagline: 'Educational sample book distribution with anti-tamper verification.',
+    description:
+      'End-to-end management of educational specimen copies sent to teachers and schools, equipped with duplicate-check detection and manager verification audits.',
+    keyFeatures: [
+      'Smart Duplicate Detection to prevent redundant sample dispatching to the same teacher/school',
+      'Multi-stage verification workflow (Pending, Verified, Flagged, Dispatched, Delivered)',
+      'Teacher acknowledgement receipt upload & photo attachment support',
+      'Supervisor audit center with flag reason resolution and notes',
+    ],
+    roles: ['Sales Rep', 'Manager', 'Admin', 'Superadmin'],
+    workflowTip: 'Always use the duplicate checker before dispatching new high-value textbook specimens.',
+  },
+  {
+    id: 'stock',
+    name: 'Stock & Inventory',
+    path: '/stock',
+    icon: 'Package',
+    category: 'Operations',
+    badge: 'Warehouse',
+    color: 'from-cyan-500 to-blue-600',
+    tagline: 'Real-time textbook warehouse stock control and movement history.',
+    description:
+      'Monitor live textbook inventory quantities, trigger stock adjustments (Inward, Outward, Wastage, Return), and receive low-inventory alerts.',
+    keyFeatures: [
+      'Real-time physical vs reserved stock metrics per product catalog item',
+      'Stock Adjustment wizard with batch tracking and reason logging',
+      'Comprehensive movement log audit (timestamp, user, delta, reason)',
+      'Automated Low Stock warning alerts to prevent supply chain bottlenecks',
+    ],
+    roles: ['Inventory Manager', 'Admin', 'Superadmin'],
+    workflowTip: 'Perform weekly reconciliations using the Stock Movement ledger to ensure physical inventory matches system data.',
+  },
+  {
+    id: 'tasks',
+    name: 'Task & Work Management',
+    path: '/tasks',
+    icon: 'CheckSquare',
+    category: 'Operations',
+    badge: 'Productivity',
+    color: 'from-green-500 to-emerald-700',
+    tagline: 'Team task delegation, priorities, due dates, and notification popups.',
+    description:
+      'Organize team assignments, set priority flags (Low, Medium, High, Urgent), collaborate via comment threads, and receive popup notifications for assignments.',
+    keyFeatures: [
+      'Kanban & list task organization filtered by status (To Do, In Progress, Completed)',
+      'Real-time popup notifications when tasks are assigned or updated',
+      'Comment discussions and activity timeline per task item',
+      'Due date tracking with overdue highlight indicators',
+    ],
+    roles: ['All Roles'],
+    workflowTip: 'Mark tasks as "In Progress" when you start work so team members and managers have immediate visibility.',
+  },
+  {
+    id: 'visits',
+    name: 'School Visits & Field Logs',
+    path: '/visits',
+    icon: 'MapPin',
+    category: 'Field Operations',
+    badge: 'Field Ops',
+    color: 'from-rose-500 to-red-600',
+    tagline: 'Field representative school visits with GPS geo-tagging & photo receipts.',
+    description:
+      'Empower on-ground field executives to log in-person school visits, capture decision-maker meeting minutes, record GPS location, and attach photo evidence.',
+    keyFeatures: [
+      'Mobile-friendly visit logging form with instant geolocation stamping',
+      'Multi-photo upload support for school entrance and teacher meeting verification',
+      'Visit outcome recording (Sample Given, Follow-up Required, Closed Adoption)',
+      'Automatic sync to school profile and teacher interaction logs',
+    ],
+    roles: ['Field Rep', 'Area Manager', 'Admin', 'Superadmin'],
+    workflowTip: 'Submit visit logs immediately while at the school premises to ensure accurate timestamping and location capture.',
+  },
+  {
+    id: 'academy',
+    name: 'Academy Taxonomy',
+    path: '/academy',
+    icon: 'GraduationCap',
+    category: 'Academics',
+    badge: 'Curriculum',
+    color: 'from-violet-500 to-indigo-700',
+    tagline: 'Educational curriculum hierarchy from boards to classes and subjects.',
+    description:
+      'Structure educational frameworks across School Boards (CBSE, ICSE, State Boards), Classes/Grades (Nursery to 12th), Subjects, and Book Series Categories.',
+    keyFeatures: [
+      'Multi-tier cascading taxonomy: Boards -> Classes -> Subjects -> Categories',
+      'Fast inline creation and editing of academic taxonomy levels',
+      'Linked product association for streamlined textbook categorization',
+      'Search and filter trees for seamless educational content management',
+    ],
+    roles: ['Admin', 'Superadmin', 'Academic Head'],
+    workflowTip: 'Setup your Board, Class, and Subject before adding newly published textbook titles into the Products catalog.',
+  },
+  {
+    id: 'products',
+    name: 'Products & Textbooks Catalog',
+    path: '/products',
+    icon: 'Layers',
+    category: 'Academics',
+    badge: 'Publishing',
+    color: 'from-sky-500 to-indigo-600',
+    tagline: 'Complete textbook catalog with rich WYSIWYG editor and specimen eligibility.',
+    description:
+      'Manage published titles, ISBN numbers, pricing, author metadata, sample book rules, and rich formatted book descriptions via CKEditor integration.',
+    keyFeatures: [
+      'Rich Text book descriptions, syllabus highlights, and table of contents with CKEditor',
+      'ISBN, Edition, Author, and MRP pricing management',
+      'Specimen distribution eligibility and inventory threshold flags',
+      'Category-filtered product directory with instant search',
+    ],
+    roles: ['All Roles (Viewing)', 'Admin / Superadmin (Edit/Create)'],
+    workflowTip: 'Include full syllabus points in the rich description to help sales reps pitch titles effectively during school visits.',
+  },
+  {
+    id: 'master-data',
+    name: 'Master Data Directory',
+    path: '/master-data',
+    icon: 'Database',
+    category: 'Academics',
+    badge: 'Institution DB',
+    color: 'from-teal-500 to-cyan-700',
+    tagline: 'Master geography, schools, and teacher database.',
+    description:
+      'The foundational database mapping States, Districts, Zones, Affiliated School Boards, Schools, and registered Subject Teachers across territories.',
+    keyFeatures: [
+      'Geographical master hierarchy: States -> Districts -> Operational Zones',
+      'School Master with affiliation codes, address, principal contact, and tier',
+      'Teacher Directory linked to specific schools, subjects taught, and contact details',
+      'Centralized reference data shared across Visits and Specimen Tracker',
+    ],
+    roles: ['Admin', 'Superadmin', 'Data Manager'],
+    workflowTip: 'Verify teacher school assignments before initiating bulk specimen dispatches.',
+  },
+  {
+    id: 'marketing',
+    name: 'Marketing & Outreach',
+    path: '/marketing',
+    icon: 'Megaphone',
+    category: 'Core CRM',
+    badge: 'Campaigns',
+    color: 'from-fuchsia-500 to-purple-600',
+    tagline: 'Outreach campaigns, promotional materials, and event management.',
+    description:
+      'Design and monitor marketing campaigns targeted at schools, principals, and academic workshops to drive textbook adoptions.',
+    keyFeatures: [
+      'Campaign creation with budget, timeline, and target audience segments',
+      'Lead generation attribution and campaign ROI conversion tracking',
+      'Workshop and book exhibition event coordination',
+      'Collateral & promotional material dispatch logging',
+    ],
+    roles: ['Marketing Team', 'Admin', 'Superadmin'],
+    workflowTip: 'Connect campaign leads directly to Contacts to measure end-to-end conversion to Closed Deals.',
+  },
+  {
+    id: 'admin',
+    name: 'Admin Center & Dynamic RBAC',
+    path: '/admin',
+    icon: 'Shield',
+    category: 'Administration',
+    badge: 'Governance',
+    color: 'from-rose-600 to-orange-600',
+    tagline: 'Dynamic Role-Based Access Control, menu management, and user permissions.',
+    description:
+      'Enterprise security suite featuring database-driven RBAC, granular permission actions (canView, canCreate, canEdit, canDelete), dynamic menu configuration, and audit logs.',
+    keyFeatures: [
+      'User role assignment (Superadmin, Admin, Sales, Manager, Custom Roles)',
+      'Granular permission action matrix per menu and per role',
+      'Dynamic menu path management with permission transfer capabilities',
+      'System-wide activity audit trail and security controls',
+    ],
+    roles: ['Superadmin', 'Admin'],
+    workflowTip: 'Custom roles can be crafted with precise view/edit action toggles without changing source code.',
+  },
+  {
+    id: 'profile',
+    name: 'User Profile & Preferences',
+    path: '/profile',
+    icon: 'User',
+    category: 'Administration',
+    badge: 'Account',
+    color: 'from-slate-600 to-slate-800',
+    tagline: 'Personal account details, security credentials, and preferences.',
+    description:
+      'Manage your personal account details, change password, customize display themes, and review personal session security.',
+    keyFeatures: [
+      'Personal profile information (Name, Email, Role, Department)',
+      'Secure password update with verification safeguards',
+      'Lock screen and session security controls',
+      'Dark/Light UI theme preferences',
+    ],
+    roles: ['All Roles'],
+    workflowTip: 'Enable lock screen when stepping away from your terminal to keep CRM customer data secure.',
+  },
+];
+
+export const WORKFLOW_GUIDES = [
+  {
+    id: 'specimen-audit',
+    title: 'How to Dispatch & Audit Sample Books',
+    category: 'Educational Operations',
+    time: '2 mins read',
+    icon: 'BookOpen',
+    steps: [
+      {
+        step: 1,
+        title: 'Check for Existing Sample Records',
+        desc: 'Navigate to Specimen Tracker. Use the duplicate checker tool before making a request to ensure the teacher or school has not already received a copy of the textbook this academic term.',
+      },
+      {
+        step: 2,
+        title: 'Submit Specimen Requisition',
+        desc: 'Fill out the form selecting the School, Teacher, Product Title, Quantity, and Delivery mode. Attach teacher acknowledgement or recommendation note if available.',
+      },
+      {
+        step: 3,
+        title: 'Supervisor Verification & Dispatch',
+        desc: 'Branch Managers review pending specimens in the Audit tab. Once approved, the status transitions to Dispatched, and warehouse stock is automatically adjusted.',
+      },
+      {
+        step: 4,
+        title: 'Mark Delivery & Follow-up',
+        desc: 'Field reps confirm delivery receipt, triggering a reminder in Tasks to follow up for textbook adoption.',
+      },
+    ],
+  },
+  {
+    id: 'school-visit-flow',
+    title: 'How to Log an On-Ground School Visit',
+    category: 'Field Operations',
+    time: '2 mins read',
+    icon: 'MapPin',
+    steps: [
+      {
+        step: 1,
+        title: 'Arrive at School & Open Visit Form',
+        desc: 'Open the School Visits menu on your mobile or laptop. The system will automatically acquire your current GPS coordinates.',
+      },
+      {
+        step: 2,
+        title: 'Select School & Decision Maker',
+        desc: 'Choose the school from Master Data. Pick the Principal or Subject Teacher you met with.',
+      },
+      {
+        step: 3,
+        title: 'Record Minutes & Attach Photos',
+        desc: 'Log discussion points, requested sample titles, and attach a photo of the school entrance or business card.',
+      },
+      {
+        step: 4,
+        title: 'Set Automatic Follow-up Task',
+        desc: 'Select "Follow-up Required" to automatically generate a Task in Task Management with the specified deadline.',
+      },
+    ],
+  },
+  {
+    id: 'rbac-governance',
+    title: 'How Dynamic Permissions & RBAC Work',
+    category: 'System Governance',
+    time: '3 mins read',
+    icon: 'ShieldCheck',
+    steps: [
+      {
+        step: 1,
+        title: 'Roles & User Mapping',
+        desc: 'In the Admin Center, Superadmins can create custom roles (e.g. "Regional Sales Lead") and assign users accordingly.',
+      },
+      {
+        step: 2,
+        title: 'Configure Menu-Wise Action Matrix',
+        desc: 'For every menu (e.g. Products, Contacts, Stock), toggle granular capabilities: canView, canCreate, canEdit, canDelete.',
+      },
+      {
+        step: 3,
+        title: 'Dynamic Client Sync',
+        desc: 'Changes apply in real-time across user sessions without requiring redeployment. The client dynamically filters sidebar items and guards routes.',
+      },
+    ],
+  },
+  {
+    id: 'stock-adjustment-flow',
+    title: 'How to Record Warehouse Stock Inward / Outward',
+    category: 'Inventory',
+    time: '2 mins read',
+    icon: 'Package',
+    steps: [
+      {
+        step: 1,
+        title: 'Navigate to Stock Management',
+        desc: 'Review the stock summary cards and low-inventory warning badges.',
+      },
+      {
+        step: 2,
+        title: 'Open Adjust Stock Wizard',
+        desc: 'Select the Product title, Movement Type (Inward/Purchase, Outward/Damaged, Return), Quantity, and Batch reference.',
+      },
+      {
+        step: 3,
+        title: 'Audit Trail Confirmation',
+        desc: 'Every adjustment records the actor, reason, timestamp, and creates an immutable movement log.',
+      },
+    ],
+  },
+];
+
+export const KEYBOARD_SHORTCUTS = [
+  { keys: ['Ctrl / ⌘', 'K'], action: 'Open Global Quick Guide & Menu Navigator' },
+  { keys: ['Shift', '?'], action: 'Toggle User Guide & Help Center' },
+  { keys: ['Esc'], action: 'Close any active modal, tour, or drawer' },
+  { keys: ['←', '→'], action: 'Navigate between Interactive Tour steps' },
+];
+
+export const TOUR_STEPS = [
+  {
+    target: '[data-tour="sidebar"]',
+    title: 'Dynamic Navigation Sidebar',
+    content:
+      'Access all CRM modules tailored to your role. Menus dynamically adapt based on permissions granted by administrators.',
+    placement: 'right',
+  },
+  {
+    target: '[data-tour="guide-btn"]',
+    title: 'Interactive User Guide & Search',
+    content:
+      'Click here anytime to search modules, read operational workflows, check role capabilities, and view keyboard shortcuts.',
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour="theme-toggle"]',
+    title: 'Theme Switcher',
+    content:
+      'Seamlessly switch between modern Dark Mode and crisp Light Mode with high-contrast readability.',
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour="user-menu"]',
+    title: 'User Profile & Security',
+    content:
+      'View your account details, access Admin Center (if privileged), manage profile settings, or securely sign out.',
+    placement: 'bottom-left',
+  },
+  {
+    target: '[data-tour="main-content"]',
+    title: 'Live Workspace & KPIs',
+    content:
+      'Your active module workspace. Work with live records, charts, and actionable data tables in real-time.',
+    placement: 'top',
+  },
+];

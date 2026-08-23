@@ -109,7 +109,7 @@ const Dashboard = () => {
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto md:pl-[260px] pt-[70px]">
         <Navbar />
         
-        <div className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">
+        <div data-tour="main-content" className="flex-1 p-8 max-w-[1600px] w-full mx-auto animate-fade-in">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-extrabold tracking-tight text-gradient mb-2">Dashboard</h1>
