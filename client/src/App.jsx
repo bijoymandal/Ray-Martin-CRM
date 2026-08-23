@@ -16,6 +16,8 @@ import Marketing from './pages/Marketing';
 import SpecimenTracker from './pages/SpecimenTracker';
 import MasterData from './pages/MasterData';
 import StockManagement from './pages/StockManagement';
+import TaskManagement from './pages/TaskManagement';
+import TaskNotificationPopup from './components/TaskNotificationPopup';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
@@ -203,10 +205,19 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute menuPath="/tasks">
+              <TaskManagement />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fallback Route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <TaskNotificationPopup />
     </LockScreen>
   );
 };

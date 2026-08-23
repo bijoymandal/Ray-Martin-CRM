@@ -39,6 +39,9 @@ model User {
   contacts        Contact[]
   deals           Deal[]
   specimenRecords SpecimenRecord[]
+  assignedTasks   Task[]           @relation("TaskAssignedTo")
+  createdTasks    Task[]           @relation("TaskCreatedBy")
+  taskComments    TaskComment[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -47,14 +50,15 @@ model Contact {
   id        String        @id @default(auto()) @map("_id") @db.ObjectId
   firstName String
   lastName  String
-  email     String
-  phone     String?
+  email     String        @unique
+  phone     String
   company   String?
   status    ContactStatus @default(LEAD)
   notes     String?
   userId    String        @db.ObjectId
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   deals     Deal[]
+  tasks     Task[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 }
@@ -68,6 +72,7 @@ model Deal {
   contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   userId    String    @db.ObjectId
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -266,6 +271,7 @@ model School {
   boardId   String     @db.ObjectId
   board     Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
   teachers  Teacher[]
+  tasks     Task[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -321,6 +327,75 @@ model SpecimenRecord {
 
   // DUPLICATE GUARD: same book cannot go to same teacher at same school twice
   @@unique([bookId, teacherName, teacherSchool])
+}
+
+// ─── Task Management System ──────────────────────────────────────────────────
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskCategory {
+  SCHOOL_VISIT
+  TEACHER_FOLLOWUP
+  SPECIMEN_DISTRIBUTION
+  DEAL_CLOSING
+  MARKETING_CAMPAIGN
+  GENERAL
+}
+
+model Task {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String?
+  priority     TaskPriority  @default(MEDIUM)
+  status       TaskStatus    @default(TODO)
+  category     TaskCategory  @default(GENERAL)
+  dueDate          DateTime?
+  completedAt      DateTime?
+  isReadByAssignee Boolean       @default(false)
+
+  // Assigned User & Creator
+  assignedToId String?       @db.ObjectId
+  assignedTo   User?         @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdById  String        @db.ObjectId
+  createdBy    User          @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Optional relations to CRM entities
+  schoolId     String?       @db.ObjectId
+  school       School?       @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+
+  dealId       String?       @db.ObjectId
+  deal         Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  contactId    String?       @db.ObjectId
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  comments     TaskComment[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model TaskComment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
 }
 
 

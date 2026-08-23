@@ -530,6 +530,52 @@ export const getStockAlertsAPI = async () => {
   return response.data;
 };
 
+// Task Management Services
+export const getTaskSummaryAPI = async () => {
+  const response = await api.get('/tasks/summary');
+  return response.data;
+};
+
+export const getTasksAPI = async (params = {}) => {
+  const response = await api.get('/tasks', { params });
+  return response.data;
+};
+
+export const createTaskAPI = async (data) => {
+  const response = await api.post('/tasks', data);
+  return response.data;
+};
+
+export const updateTaskAPI = async (id, data) => {
+  const response = await api.put(`/tasks/${id}`, data);
+  return response.data;
+};
+
+export const updateTaskStatusAPI = async (id, status) => {
+  const response = await api.patch(`/tasks/${id}/status`, { status });
+  return response.data;
+};
+
+export const deleteTaskAPI = async (id) => {
+  const response = await api.delete(`/tasks/${id}`);
+  return response.data;
+};
+
+export const addTaskCommentAPI = async (id, content) => {
+  const response = await api.post(`/tasks/${id}/comments`, { content });
+  return response.data;
+};
+
+export const getMyTaskNotificationsAPI = async () => {
+  const response = await api.get('/tasks/my-notifications');
+  return response.data;
+};
+
+export const markTaskAsReadAPI = async (id) => {
+  const response = await api.patch(`/tasks/${id}/read`);
+  return response.data;
+};
+
 export default api;
 
 

@@ -251,6 +251,25 @@ async function main() {
     BOOKSELLER: { canView: true, canCreate: false, canEdit: true, canDelete: false },
   });
 
+  // 11. Task Management Menu
+  const mTasks = await prisma.menu.create({
+    data: {
+      name: 'Task Management',
+      path: '/tasks',
+      iconName: 'CheckSquare',
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN', 'BOOKSELLER'],
+      order: 11,
+    },
+  });
+  await seedPermissions(mTasks, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    ACCOUNT:    { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    SALESMAN:   { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    BOOKSELLER: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+  });
+
   console.log('Created default menus and their permission matrices.');
 
 
