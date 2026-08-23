@@ -175,16 +175,12 @@ const ProductForm = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Main product image exceeds 2MB limit.');
     if (file.size > 10 * 1024 * 1024) {
       setError('Main product image exceeds 10MB limit.');
       return;
     }
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Only JPG, PNG, and GIF formats are allowed.');
       setError('Only JPG, PNG, GIF, and WEBP formats are allowed.');
       return;
     }
@@ -201,12 +197,9 @@ const ProductForm = () => {
 
     const newFiles = [];
     const newPreviews = [];
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
     for (const file of files) {
-      if (file.size > 2 * 1024 * 1024) {
-        setError(`File '${file.name}' exceeds the 2MB size limit.`);
       if (file.size > 10 * 1024 * 1024) {
         setError(`File '${file.name}' exceeds the 10MB size limit.`);
         return;
@@ -406,11 +399,9 @@ const ProductForm = () => {
                           <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-2xl aspect-square text-xs font-semibold text-slate-400 hover:text-indigo-500 hover:border-indigo-500/40 transition-all cursor-pointer bg-slate-50/40 dark:bg-white/1">
                             <Upload size={24} className="text-slate-400" />
                             <span>Upload Main Logo</span>
-                            <span className="text-[9px] text-slate-500">Max 2MB (JPG, PNG, GIF)</span>
                             <span className="text-[9px] text-slate-500">Max 10MB (JPG, PNG, GIF, WEBP)</span>
                             <input
                               type="file"
-                              accept="image/jpeg, image/png, image/gif"
                               accept="image/jpeg, image/png, image/gif, image/webp"
                               onChange={handleLogoChange}
                               className="hidden"
@@ -465,7 +456,6 @@ const ProductForm = () => {
                           <input
                             type="file"
                             multiple
-                            accept="image/jpeg, image/png, image/gif"
                             accept="image/jpeg, image/png, image/gif, image/webp"
                             onChange={handleGalleryChange}
                             className="hidden"

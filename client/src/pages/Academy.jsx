@@ -140,9 +140,6 @@ const Academy = () => {
   const validateFile = (file) => {
     if (!file) return false;
 
-    // Size limit is 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be less than 2MB.');
     // Size limit is 10MB
     if (file.size > 10 * 1024 * 1024) {
       setError('File size must be less than 10MB.');
@@ -150,10 +147,8 @@ const Academy = () => {
     }
 
     // Supported formats
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Only JPEG, PNG, and GIF image files are allowed.');
       setError('Only JPEG, PNG, GIF, and WEBP image files are allowed.');
       return false;
     }
