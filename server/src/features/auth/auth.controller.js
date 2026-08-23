@@ -19,9 +19,11 @@ exports.register = async (req, res, next) => {
       throw new Error('Please enter all fields');
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // Check if user already exists
     const userExists = await prisma.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (userExists) {
@@ -36,8 +38,8 @@ exports.register = async (req, res, next) => {
     // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: cleanEmail,
         password: hashedPassword,
       },
     });
@@ -71,9 +73,11 @@ exports.login = async (req, res, next) => {
       throw new Error('Please enter all fields');
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // Check for user
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (user && (await bcrypt.compare(password, user.password))) {
