@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
+import KpiCard from '../components/KpiCard';
 import { useAuth } from '../context/AuthContext';
 import {
   getMasterDataSummaryAPI,
@@ -282,77 +283,59 @@ const MasterData = () => {
 
           {/* Overview Summary Widgets */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div
+            <KpiCard
+              title="States"
+              value={summary.statesCount}
+              icon={<MapPin size={14} />}
+              accentColor="indigo"
               onClick={() => setActiveTab('states')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'states' ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <MapPin size={12} className="text-indigo-500" /> States
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.statesCount}</div>
-            </div>
+              isActive={activeTab === 'states'}
+            />
 
-            <div
+            <KpiCard
+              title="Districts"
+              value={summary.districtsCount}
+              icon={<Building size={14} />}
+              accentColor="purple"
               onClick={() => setActiveTab('districts')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'districts' ? 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Building size={12} className="text-purple-500" /> Districts
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.districtsCount}</div>
-            </div>
+              isActive={activeTab === 'districts'}
+            />
 
-            <div
+            <KpiCard
+              title="Zones"
+              value={summary.zonesCount}
+              icon={<Navigation size={14} />}
+              accentColor="cyan"
               onClick={() => setActiveTab('zones')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'zones' ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-cyan-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Navigation size={12} className="text-cyan-500" /> Zones
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.zonesCount}</div>
-            </div>
+              isActive={activeTab === 'zones'}
+            />
 
-            <div
+            <KpiCard
+              title="School Boards"
+              value={summary.boardsCount}
+              icon={<BookOpen size={14} />}
+              accentColor="amber"
               onClick={() => setActiveTab('boards')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'boards' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <BookOpen size={12} className="text-amber-500" /> School Boards
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.boardsCount}</div>
-            </div>
+              isActive={activeTab === 'boards'}
+            />
 
-            <div
+            <KpiCard
+              title="Schools"
+              value={summary.schoolsCount}
+              icon={<SchoolIcon size={14} />}
+              accentColor="emerald"
               onClick={() => setActiveTab('schools')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'schools' ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <SchoolIcon size={12} className="text-emerald-500" /> Schools
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.schoolsCount}</div>
-            </div>
+              isActive={activeTab === 'schools'}
+            />
 
-            <div
+            <KpiCard
+              title="Teachers"
+              value={summary.teachersCount}
+              icon={<Users size={14} />}
+              accentColor="rose"
               onClick={() => setActiveTab('teachers')}
-              className={`glass-card p-4 cursor-pointer transition-all ${
-                activeTab === 'teachers' ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-500/5' : ''
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Users size={12} className="text-rose-500" /> Teachers
-              </div>
-              <div className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">{summary.teachersCount}</div>
-            </div>
+              isActive={activeTab === 'teachers'}
+            />
           </div>
 
           {/* Hierarchical Breadcrumb Bar */}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
+import KpiCard from '../components/KpiCard';
 import { useAuth } from '../context/AuthContext';
 import {
   getStockSummaryAPI,
@@ -208,55 +209,38 @@ const StockManagement = () => {
           {/* KPI Overview Widgets */}
           {summary && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="glass-card p-5 space-y-2 relative overflow-hidden group">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-                  <span>Total Warehouse Stock</span>
-                  <Package size={16} className="text-indigo-500" />
-                </div>
-                <div className="text-2xl font-black text-slate-800 dark:text-slate-100">
-                  {summary.totalQuantity.toLocaleString()} <span className="text-xs font-bold text-slate-400">units</span>
-                </div>
-                <p className="text-[11px] text-slate-400">Across {summary.totalProducts} published book titles</p>
-              </div>
+              <KpiCard
+                title="Total Warehouse Stock"
+                value={`${summary.totalQuantity.toLocaleString()} units`}
+                subtitle={`Across ${summary.totalProducts} published book titles`}
+                icon={<Package size={16} />}
+                accentColor="indigo"
+              />
 
-              <div className="glass-card p-5 space-y-2 relative overflow-hidden group">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-                  <span>Inventory Asset Valuation</span>
-                  <DollarSign size={16} className="text-emerald-500" />
-                </div>
-                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(summary.totalAssetValue)}
-                </div>
-                <p className="text-[11px] text-slate-400">Net physical inventory valuation</p>
-              </div>
+              <KpiCard
+                title="Inventory Asset Valuation"
+                value={formatCurrency(summary.totalAssetValue)}
+                subtitle="Net physical inventory valuation"
+                icon={<DollarSign size={16} />}
+                accentColor="emerald"
+              />
 
-              <div className="glass-card p-5 space-y-2 relative overflow-hidden group">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-                  <span>Stock Reorder Alerts</span>
-                  <AlertTriangle size={16} className="text-amber-500" />
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-amber-500">{summary.lowStockCount} Low</span>
-                  <span className="text-xs font-extrabold text-rose-500">({summary.outOfStockCount} Out of stock)</span>
-                </div>
-                <p className="text-[11px] text-slate-400">Titles below minimum threshold</p>
-              </div>
+              <KpiCard
+                title="Stock Reorder Alerts"
+                value={`${summary.lowStockCount} Low`}
+                subtitle="Titles below minimum threshold"
+                badgeText={`${summary.outOfStockCount} Out of Stock`}
+                icon={<AlertTriangle size={16} />}
+                accentColor="amber"
+              />
 
-              <div className="glass-card p-5 space-y-2 relative overflow-hidden group">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-                  <span>Monthly Inward vs Outward</span>
-                  <TrendingUp size={16} className="text-cyan-500" />
-                </div>
-                <div className="flex items-center justify-between text-xs font-extrabold pt-1">
-                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <ArrowDownLeft size={14} /> +{summary.inwardMonth} Inward
-                  </span>
-                  <span className="text-rose-500 flex items-center gap-1">
-                    <ArrowUpRight size={14} /> -{summary.outwardMonth + summary.specimenMonth} Outward
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">{summary.specimenMonth} copies issued as teacher specimens</p>
-              </div>
+              <KpiCard
+                title="Monthly Inward vs Outward"
+                value={`+${summary.inwardMonth} / -${summary.outwardMonth + summary.specimenMonth}`}
+                subtitle={`${summary.specimenMonth} copies issued as teacher specimens`}
+                icon={<TrendingUp size={16} />}
+                accentColor="cyan"
+              />
             </div>
           )}
 
