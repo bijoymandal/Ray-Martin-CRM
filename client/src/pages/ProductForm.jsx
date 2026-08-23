@@ -177,11 +177,15 @@ const ProductForm = () => {
 
     if (file.size > 2 * 1024 * 1024) {
       setError('Main product image exceeds 2MB limit.');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Main product image exceeds 10MB limit.');
       return;
     }
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       setError('Only JPG, PNG, and GIF formats are allowed.');
+      setError('Only JPG, PNG, GIF, and WEBP formats are allowed.');
       return;
     }
 
@@ -198,10 +202,13 @@ const ProductForm = () => {
     const newFiles = [];
     const newPreviews = [];
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
     for (const file of files) {
       if (file.size > 2 * 1024 * 1024) {
         setError(`File '${file.name}' exceeds the 2MB size limit.`);
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`File '${file.name}' exceeds the 10MB size limit.`);
         return;
       }
       if (!allowedTypes.includes(file.type)) {
@@ -400,9 +407,11 @@ const ProductForm = () => {
                             <Upload size={24} className="text-slate-400" />
                             <span>Upload Main Logo</span>
                             <span className="text-[9px] text-slate-500">Max 2MB (JPG, PNG, GIF)</span>
+                            <span className="text-[9px] text-slate-500">Max 10MB (JPG, PNG, GIF, WEBP)</span>
                             <input
                               type="file"
                               accept="image/jpeg, image/png, image/gif"
+                              accept="image/jpeg, image/png, image/gif, image/webp"
                               onChange={handleLogoChange}
                               className="hidden"
                             />
@@ -457,6 +466,7 @@ const ProductForm = () => {
                             type="file"
                             multiple
                             accept="image/jpeg, image/png, image/gif"
+                            accept="image/jpeg, image/png, image/gif, image/webp"
                             onChange={handleGalleryChange}
                             className="hidden"
                           />

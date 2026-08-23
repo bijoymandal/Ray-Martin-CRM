@@ -22,12 +22,15 @@ const storage = multer.diskStorage({
 });
 
 // Validate image file formats (JPEG, PNG, GIF)
+// Validate image file formats (JPEG, PNG, GIF, WEBP)
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file format. Only JPEG, PNG, and GIF images are allowed.'), false);
+    cb(new Error('Invalid file format. Only JPEG, PNG, GIF, and WEBP images are allowed.'), false);
   }
 };
 
@@ -36,6 +39,7 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 2 * 1024 * 1024, // 2MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
 });
 
