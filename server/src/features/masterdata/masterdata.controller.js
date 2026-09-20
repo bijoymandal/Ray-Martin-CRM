@@ -4,15 +4,58 @@ const { logActivity } = require('../../lib/activity-logger');
 // ─── STATES ─────────────────────────────────────────────────────────────────
 exports.getStates = async (req, res, next) => {
   try {
+    const { page, limit, search } = req.query;
+    const where = {};
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { code: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, states] = await Promise.all([
+        prisma.state.count({ where }),
+        prisma.state.findMany({
+          where,
+          include: {
+            districts: {
+              select: { id: true, name: true },
+            },
+            _count: { select: { districts: true } },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: states.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: states,
+      });
+    }
+
     const states = await prisma.state.findMany({
+      where,
       include: {
         districts: {
           select: { id: true, name: true },
         },
+        _count: { select: { districts: true } },
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: states.length, data: states });
+    res.json({ success: true, count: states.length, total: states.length, data: states });
   } catch (err) {
     next(err);
   }
@@ -66,17 +109,53 @@ exports.deleteState = async (req, res, next) => {
 // ─── DISTRICTS ──────────────────────────────────────────────────────────────
 exports.getDistricts = async (req, res, next) => {
   try {
-    const { stateId } = req.query;
-    const where = stateId ? { stateId } : {};
+    const { stateId, search, page, limit } = req.query;
+    const where = {};
+    if (stateId) where.stateId = stateId;
+    if (search && search.trim()) {
+      where.name = { contains: search.trim(), mode: 'insensitive' };
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, districts] = await Promise.all([
+        prisma.district.count({ where }),
+        prisma.district.findMany({
+          where,
+          include: {
+            state: { select: { id: true, name: true } },
+            zones: { select: { id: true, name: true } },
+            _count: { select: { zones: true } },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: districts.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: districts,
+      });
+    }
+
     const districts = await prisma.district.findMany({
       where,
       include: {
         state: { select: { id: true, name: true } },
         zones: { select: { id: true, name: true } },
+        _count: { select: { zones: true } },
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: districts.length, data: districts });
+    res.json({ success: true, count: districts.length, total: districts.length, data: districts });
   } catch (err) {
     next(err);
   }
@@ -131,8 +210,58 @@ exports.deleteDistrict = async (req, res, next) => {
 // ─── ZONES ──────────────────────────────────────────────────────────────────
 exports.getZones = async (req, res, next) => {
   try {
-    const { districtId } = req.query;
-    const where = districtId ? { districtId } : {};
+    const { districtId, stateId, search, page, limit } = req.query;
+    const where = {};
+    if (districtId) {
+      where.districtId = districtId;
+    } else if (stateId) {
+      const stateDistricts = await prisma.district.findMany({
+        where: { stateId },
+        select: { id: true },
+      });
+      where.districtId = { in: stateDistricts.map((d) => d.id) };
+    }
+
+    if (search && search.trim()) {
+      where.name = { contains: search.trim(), mode: 'insensitive' };
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, zones] = await Promise.all([
+        prisma.zone.count({ where }),
+        prisma.zone.findMany({
+          where,
+          include: {
+            district: {
+              select: {
+                id: true,
+                name: true,
+                state: { select: { id: true, name: true } },
+              },
+            },
+            schools: { select: { id: true, name: true } },
+            _count: { select: { schools: true } },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: zones.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: zones,
+      });
+    }
+
     const zones = await prisma.zone.findMany({
       where,
       include: {
@@ -144,10 +273,11 @@ exports.getZones = async (req, res, next) => {
           },
         },
         schools: { select: { id: true, name: true } },
+        _count: { select: { schools: true } },
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: zones.length, data: zones });
+    res.json({ success: true, count: zones.length, total: zones.length, data: zones });
   } catch (err) {
     next(err);
   }
@@ -202,14 +332,56 @@ exports.deleteZone = async (req, res, next) => {
 // ─── SCHOOL BOARDS (Using Academy Manager Boards) ───────────────────────────
 exports.getSchoolBoards = async (req, res, next) => {
   try {
+    const { search, page, limit } = req.query;
+    const where = {};
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { shortName: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, boards] = await Promise.all([
+        prisma.board.count({ where }),
+        prisma.board.findMany({
+          where,
+          include: {
+            schools: { select: { id: true, name: true } },
+            classes: { select: { id: true, name: true } },
+            _count: { select: { schools: true, classes: true } },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: boards.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: boards,
+      });
+    }
+
     const boards = await prisma.board.findMany({
+      where,
       include: {
         schools: { select: { id: true, name: true } },
         classes: { select: { id: true, name: true } },
+        _count: { select: { schools: true, classes: true } },
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: boards.length, data: boards });
+    res.json({ success: true, count: boards.length, total: boards.length, data: boards });
   } catch (err) {
     next(err);
   }
@@ -267,13 +439,74 @@ exports.deleteSchoolBoard = async (req, res, next) => {
 // ─── SCHOOLS ────────────────────────────────────────────────────────────────
 exports.getSchools = async (req, res, next) => {
   try {
-    const { zoneId, boardId, type, search } = req.query;
+    const { zoneId, districtId, stateId, boardId, type, search, page, limit } = req.query;
     const where = {};
-    if (zoneId) where.zoneId = zoneId;
+
+    if (zoneId) {
+      where.zoneId = zoneId;
+    } else if (districtId) {
+      const districtZones = await prisma.zone.findMany({
+        where: { districtId },
+        select: { id: true },
+      });
+      where.zoneId = { in: districtZones.map((z) => z.id) };
+    } else if (stateId) {
+      const stateDistricts = await prisma.district.findMany({
+        where: { stateId },
+        select: { id: true },
+      });
+      const stateZones = await prisma.zone.findMany({
+        where: { districtId: { in: stateDistricts.map((d) => d.id) } },
+        select: { id: true },
+      });
+      where.zoneId = { in: stateZones.map((z) => z.id) };
+    }
+
     if (boardId) where.boardId = boardId;
     if (type) where.type = type;
-    if (search) {
-      where.name = { contains: search, mode: 'insensitive' };
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, schools] = await Promise.all([
+        prisma.school.count({ where }),
+        prisma.school.findMany({
+          where,
+          include: {
+            zone: {
+              include: {
+                district: {
+                  include: { state: true },
+                },
+              },
+            },
+            board: true,
+            teachers: { select: { id: true, name: true, phone: true, subject: true } },
+            _count: { select: { teachers: true } },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: schools.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: schools,
+      });
     }
 
     const schools = await prisma.school.findMany({
@@ -288,10 +521,11 @@ exports.getSchools = async (req, res, next) => {
         },
         board: true,
         teachers: { select: { id: true, name: true, phone: true, subject: true } },
+        _count: { select: { teachers: true } },
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: schools.length, data: schools });
+    res.json({ success: true, count: schools.length, total: schools.length, data: schools });
   } catch (err) {
     next(err);
   }
@@ -358,16 +592,71 @@ exports.deleteSchool = async (req, res, next) => {
 // ─── TEACHERS ───────────────────────────────────────────────────────────────
 exports.getTeachers = async (req, res, next) => {
   try {
-    const { schoolId, search } = req.query;
+    const { schoolId, districtId, zoneId, boardId, search, page, limit } = req.query;
     const where = {};
-    if (schoolId) where.schoolId = schoolId;
-    if (search) {
+    if (schoolId) {
+      where.schoolId = schoolId;
+    } else {
+      const schoolWhere = {};
+      if (boardId) schoolWhere.boardId = boardId;
+      if (zoneId) {
+        schoolWhere.zoneId = zoneId;
+      } else if (districtId) {
+        schoolWhere.zone = { districtId };
+      }
+      if (Object.keys(schoolWhere).length > 0) {
+        where.school = schoolWhere;
+      }
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-        { subject: { contains: search, mode: 'insensitive' } },
-        { school: { name: { contains: search, mode: 'insensitive' } } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q, mode: 'insensitive' } },
+        { subject: { contains: q, mode: 'insensitive' } },
+        { designation: { contains: q, mode: 'insensitive' } },
+        { school: { name: { contains: q, mode: 'insensitive' } } },
       ];
+    }
+
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, teachers] = await Promise.all([
+        prisma.teacher.count({ where }),
+        prisma.teacher.findMany({
+          where,
+          include: {
+            school: {
+              include: {
+                board: true,
+                zone: {
+                  include: {
+                    district: {
+                      include: { state: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+        count: teachers.length,
+        total,
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        data: teachers,
+      });
     }
 
     const teachers = await prisma.teacher.findMany({
@@ -388,7 +677,7 @@ exports.getTeachers = async (req, res, next) => {
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ success: true, count: teachers.length, data: teachers });
+    res.json({ success: true, count: teachers.length, total: teachers.length, data: teachers });
   } catch (err) {
     next(err);
   }
@@ -492,4 +781,103 @@ exports.getMasterDataSummary = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── INITIALIZE WEST BENGAL MASTER DATA ─────────────────────────────────────
+const { seedWestBengalMasterData } = require('./west-bengal-seed.data');
+
+exports.initWestBengalMasterData = async (req, res, next) => {
+  try {
+    const result = await seedWestBengalMasterData(prisma);
+    await logActivity(
+      req,
+      'CREATE',
+      'MASTER_DATA',
+      `Synchronized West Bengal master locations: ${result.districtsCreated} districts, ${result.zonesCreated} zones, ${result.schoolsCreated} schools.`,
+      null,
+      result
+    );
+    res.json({
+      success: true,
+      message: 'West Bengal master districts, zones, and benchmark schools loaded successfully',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── USER DISTRICT ACCESS MANAGEMENT ────────────────────────────────────────
+exports.getUserDistrictAccess = async (req, res, next) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: 'asc' },
+    });
+
+    let accessDocs = [];
+    try {
+      const rawRes = await prisma.$runCommandRaw({
+        find: 'UserDistrictAccess',
+        filter: {},
+      });
+      if (rawRes?.cursor?.firstBatch) {
+        accessDocs = rawRes.cursor.firstBatch;
+      }
+    } catch (e) {
+      // Collection may not exist yet, that's fine
+    }
+
+    const accessMap = {};
+    for (const doc of accessDocs) {
+      accessMap[doc.userId] = doc.districtIds || [];
+    }
+
+    const data = users.map((u) => ({
+      ...u,
+      districtIds: accessMap[u.id] || [],
+    }));
+
+    res.json({ success: true, count: data.length, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateUserDistrictAccess = async (req, res, next) => {
+  try {
+    const { userId, districtIds } = req.body;
+    if (!userId || !Array.isArray(districtIds)) {
+      res.status(400);
+      throw new Error('userId and districtIds array are required');
+    }
+
+    await prisma.$runCommandRaw({
+      update: 'UserDistrictAccess',
+      updates: [
+        {
+          q: { userId },
+          u: { $set: { userId, districtIds, updatedAt: new Date() } },
+          upsert: true,
+        },
+      ],
+    });
+
+    await logActivity(
+      req,
+      'UPDATE',
+      'USER_ACCESS',
+      `Updated district access for user ${userId} (${districtIds.length} districts)`
+    );
+
+    res.json({
+      success: true,
+      message: 'District access updated successfully',
+      userId,
+      districtIds,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

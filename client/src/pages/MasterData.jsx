@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
@@ -24,48 +26,50 @@ import {
   Search,
   Edit2,
   Trash2,
-  Check,
   X,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   RefreshCw,
   Phone,
   Mail,
-  Shield,
-  Layers,
-  Award,
   Filter,
+  RotateCcw,
 } from 'lucide-react';
 
 const MasterData = () => {
   const { user, permissions } = useAuth();
+  const queryClient = useQueryClient();
   const menuPerm = permissions.find((p) => p.menu.path === '/master-data');
 
   const canCreate = user?.role === 'SUPERADMIN' || (menuPerm?.actions?.includes('canCreate') ?? false);
   const canEdit = user?.role === 'SUPERADMIN' || (menuPerm?.actions?.includes('canEdit') ?? false);
   const canDelete = user?.role === 'SUPERADMIN' || (menuPerm?.actions?.includes('canDelete') ?? false);
 
-  // Active Tab: 'states' | 'districts' | 'zones' | 'boards' | 'schools' | 'teachers'
-  const [activeTab, setActiveTab] = useState('states');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  // Summary counts
-  const [summary, setSummary] = useState({
-    statesCount: 0,
-    districtsCount: 0,
-    zonesCount: 0,
-    boardsCount: 0,
-    schoolsCount: 0,
-    teachersCount: 0,
-  });
+  // Active Tab derived from URL query param: 'states' | 'districts' | 'zones' | 'boards' | 'schools' | 'teachers'
+  const activeTab = searchParams.get('tab') || 'states';
 
-  // Data lists
-  const [states, setStates] = useState([]);
-  const [districts, setDistricts] = useState([]);
-  const [zones, setZones] = useState([]);
-  const [boards, setBoards] = useState([]);
-  const [schools, setSchools] = useState([]);
-  const [teachers, setTeachers] = useState([]);
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
-  // Selected filters for cascading view
+  // Search input with live debouncing
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Cascading filters
   const [selectedStateId, setSelectedStateId] = useState('');
   const [selectedDistrictId, setSelectedDistrictId] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState('');
@@ -73,9 +77,50 @@ const MasterData = () => {
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [schoolTypeFilter, setSchoolTypeFilter] = useState('');
 
-  // UI state
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const handleTabChange = (newTab) => {
+    setPage(1);
+    setSearchInput('');
+    setDebouncedSearch('');
+    setSearchParams({ tab: newTab });
+  };
+
+  const handleStateFilterChange = (v) => {
+    setSelectedStateId(v);
+    setSelectedDistrictId('');
+    setSelectedZoneId('');
+    setSelectedSchoolId('');
+    setPage(1);
+  };
+
+  const handleDistrictFilterChange = (v) => {
+    setSelectedDistrictId(v);
+    setSelectedZoneId('');
+    setSelectedSchoolId('');
+    setPage(1);
+  };
+
+  const handleZoneFilterChange = (v) => {
+    setSelectedZoneId(v);
+    setSelectedSchoolId('');
+    setPage(1);
+  };
+
+  const handleBoardFilterChange = (v) => {
+    setSelectedBoardId(v);
+    setPage(1);
+  };
+
+  const handleSchoolFilterChange = (v) => {
+    setSelectedSchoolId(v);
+    setPage(1);
+  };
+
+  const handleTypeFilterChange = (v) => {
+    setSchoolTypeFilter(v);
+    setPage(1);
+  };
+
+  // Toast / error state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -84,165 +129,293 @@ const MasterData = () => {
   const [editItem, setEditItem] = useState(null);
   const [formData, setFormData] = useState({});
 
-  // Fetch summary
-  const fetchSummary = async () => {
-    try {
+  // ─── TANSTACK QUERIES ────────────────────────────────────────────────────────
+
+  // 1. KPI Summary Counts
+  const { data: summaryData } = useQuery({
+    queryKey: ['masterdata-summary'],
+    queryFn: async () => {
       const res = await getMasterDataSummaryAPI();
-      if (res.success) setSummary(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+      return res?.data || {};
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const summary = summaryData || {
+    statesCount: 0,
+    districtsCount: 0,
+    zonesCount: 0,
+    boardsCount: 0,
+    schoolsCount: 0,
+    teachersCount: 0,
   };
 
-  // Fetch tab data
-  const fetchData = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      if (activeTab === 'states') {
-        const res = await getStatesAPI();
-        if (res.success) setStates(res.data || []);
-      } else if (activeTab === 'districts') {
-        const res = await getDistrictsAPI(selectedStateId);
-        if (res.success) setDistricts(res.data || []);
-      } else if (activeTab === 'zones') {
-        const res = await getZonesAPI(selectedDistrictId);
-        if (res.success) setZones(res.data || []);
-      } else if (activeTab === 'boards') {
-        const res = await getSchoolBoardsAPI();
-        if (res.success) setBoards(res.data || []);
-      } else if (activeTab === 'schools') {
-        const res = await getSchoolsAPI({
-          zoneId: selectedZoneId || undefined,
-          boardId: selectedBoardId || undefined,
-          type: schoolTypeFilter || undefined,
-          search: search || undefined,
-        });
-        if (res.success) setSchools(res.data || []);
-      } else if (activeTab === 'teachers') {
-        const res = await getTeachersAPI({
-          schoolId: selectedSchoolId || undefined,
-          search: search || undefined,
-        });
-        if (res.success) setTeachers(res.data || []);
+  // 2. Reference lookups for cascading dropdown filters & modal forms
+  const { data: refStates = [] } = useQuery({
+    queryKey: ['reference-states'],
+    queryFn: async () => {
+      const res = await getStatesAPI();
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: refDistricts = [] } = useQuery({
+    queryKey: ['reference-districts', selectedStateId],
+    queryFn: async () => {
+      const res = await getDistrictsAPI({ stateId: selectedStateId || undefined });
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allDistricts = [] } = useQuery({
+    queryKey: ['reference-all-districts'],
+    queryFn: async () => {
+      const res = await getDistrictsAPI();
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: refZones = [] } = useQuery({
+    queryKey: ['reference-zones', selectedDistrictId, selectedStateId],
+    queryFn: async () => {
+      const res = await getZonesAPI({
+        districtId: selectedDistrictId || undefined,
+        stateId: (!selectedDistrictId && selectedStateId) ? selectedStateId : undefined,
+      });
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allZones = [] } = useQuery({
+    queryKey: ['reference-all-zones'],
+    queryFn: async () => {
+      const res = await getZonesAPI();
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: refBoards = [] } = useQuery({
+    queryKey: ['reference-boards'],
+    queryFn: async () => {
+      const res = await getSchoolBoardsAPI();
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: refSchools = [] } = useQuery({
+    queryKey: ['reference-schools', selectedZoneId, selectedDistrictId, selectedBoardId],
+    queryFn: async () => {
+      const res = await getSchoolsAPI({
+        zoneId: selectedZoneId || undefined,
+        districtId: selectedDistrictId || undefined,
+        boardId: selectedBoardId || undefined,
+      });
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allSchools = [] } = useQuery({
+    queryKey: ['reference-all-schools'],
+    queryFn: async () => {
+      const res = await getSchoolsAPI();
+      return res?.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // 3. Main Active Tab Paginated Query
+  const activeTabParams = useMemo(() => {
+    const p = {
+      page,
+      limit,
+      search: debouncedSearch.trim() || undefined,
+    };
+    if (activeTab === 'districts') {
+      if (selectedStateId) p.stateId = selectedStateId;
+    } else if (activeTab === 'zones') {
+      if (selectedDistrictId) p.districtId = selectedDistrictId;
+      else if (selectedStateId) p.stateId = selectedStateId;
+    } else if (activeTab === 'schools') {
+      if (selectedZoneId) p.zoneId = selectedZoneId;
+      else if (selectedDistrictId) p.districtId = selectedDistrictId;
+      else if (selectedStateId) p.stateId = selectedStateId;
+      if (selectedBoardId) p.boardId = selectedBoardId;
+      if (schoolTypeFilter) p.type = schoolTypeFilter;
+    } else if (activeTab === 'teachers') {
+      if (selectedSchoolId) p.schoolId = selectedSchoolId;
+      else {
+        if (selectedZoneId) p.zoneId = selectedZoneId;
+        else if (selectedDistrictId) p.districtId = selectedDistrictId;
+        if (selectedBoardId) p.boardId = selectedBoardId;
       }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to fetch data');
-    } finally {
-      setLoading(false);
     }
-  };
+    return p;
+  }, [activeTab, page, limit, debouncedSearch, selectedStateId, selectedDistrictId, selectedZoneId, selectedBoardId, selectedSchoolId, schoolTypeFilter]);
 
-  // Pre-load all lists for dropdown references in forms
-  const loadReferenceData = async () => {
-    try {
-      const [stRes, disRes, zoRes, boRes, schRes] = await Promise.all([
-        getStatesAPI(),
-        getDistrictsAPI(),
-        getZonesAPI(),
-        getSchoolBoardsAPI(),
-        getSchoolsAPI(),
-      ]);
-      if (stRes.success) setStates(stRes.data);
-      if (disRes.success) setDistricts(disRes.data);
-      if (zoRes.success) setZones(zoRes.data);
-      if (boRes.success) setBoards(boRes.data);
-      if (schRes.success) setSchools(schRes.data);
-    } catch (err) {
-      console.error('Error loading reference data:', err);
-    }
-  };
+  const {
+    data: tabResult,
+    isLoading: isTabLoading,
+    isFetching: isTabFetching,
+  } = useQuery({
+    queryKey: ['masterdata-table', activeTab, activeTabParams],
+    queryFn: async () => {
+      if (activeTab === 'states') return await getStatesAPI(activeTabParams);
+      if (activeTab === 'districts') return await getDistrictsAPI(activeTabParams);
+      if (activeTab === 'zones') return await getZonesAPI(activeTabParams);
+      if (activeTab === 'boards') return await getSchoolBoardsAPI(activeTabParams);
+      if (activeTab === 'schools') return await getSchoolsAPI(activeTabParams);
+      if (activeTab === 'teachers') return await getTeachersAPI(activeTabParams);
+      return { data: [], total: 0 };
+    },
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => {
-    fetchSummary();
-    loadReferenceData();
-  }, []);
+  const items = tabResult?.data || [];
+  const total = tabResult?.total !== undefined ? tabResult.total : items.length;
+  const totalPages = tabResult?.totalPages || Math.max(1, Math.ceil(total / limit));
+  const currentPage = tabResult?.currentPage || page;
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab, selectedStateId, selectedDistrictId, selectedZoneId, selectedBoardId, selectedSchoolId, schoolTypeFilter]);
+  // ─── MUTATIONS ───────────────────────────────────────────────────────────────
 
-  // Open Create Modal
+  const saveMutation = useMutation({
+    mutationFn: async ({ mode, currentTab, editObj, formValues }) => {
+      if (currentTab === 'states') {
+        return mode === 'edit' ? await updateStateAPI(editObj.id, formValues) : await createStateAPI(formValues);
+      }
+      if (currentTab === 'districts') {
+        return mode === 'edit' ? await updateDistrictAPI(editObj.id, formValues) : await createDistrictAPI(formValues);
+      }
+      if (currentTab === 'zones') {
+        return mode === 'edit' ? await updateZoneAPI(editObj.id, formValues) : await createZoneAPI(formValues);
+      }
+      if (currentTab === 'boards') {
+        return mode === 'edit' ? await updateSchoolBoardAPI(editObj.id, formValues) : await createSchoolBoardAPI(formValues);
+      }
+      if (currentTab === 'schools') {
+        return mode === 'edit' ? await updateSchoolAPI(editObj.id, formValues) : await createSchoolAPI(formValues);
+      }
+      if (currentTab === 'teachers') {
+        return mode === 'edit' ? await updateTeacherAPI(editObj.id, formValues) : await createTeacherAPI(formValues);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['masterdata-table'] });
+      queryClient.invalidateQueries({ queryKey: ['masterdata-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-states'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-districts'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-districts'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-zones'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-zones'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-boards'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-schools'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-schools'] });
+      setSuccess(`${activeTab.slice(0, -1)} saved successfully!`);
+      setModalMode(null);
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err) => {
+      setError(err?.response?.data?.message || err?.message || 'Operation failed');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ currentTab, id }) => {
+      if (currentTab === 'states') return await deleteStateAPI(id);
+      if (currentTab === 'districts') return await deleteDistrictAPI(id);
+      if (currentTab === 'zones') return await deleteZoneAPI(id);
+      if (currentTab === 'boards') return await deleteSchoolBoardAPI(id);
+      if (currentTab === 'schools') return await deleteSchoolAPI(id);
+      if (currentTab === 'teachers') return await deleteTeacherAPI(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['masterdata-table'] });
+      queryClient.invalidateQueries({ queryKey: ['masterdata-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-states'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-districts'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-districts'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-zones'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-zones'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-boards'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-schools'] });
+      queryClient.invalidateQueries({ queryKey: ['reference-all-schools'] });
+      setSuccess('Record deleted successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    },
+    onError: (err) => {
+      setError(err?.response?.data?.message || err?.message || 'Failed to delete record');
+    },
+  });
+
+  // Modal Handlers
   const openCreateModal = () => {
     setEditItem(null);
     setFormData({});
     setModalMode('create');
   };
 
-  // Open Edit Modal
   const openEditModal = (item) => {
     setEditItem(item);
     setFormData({ ...item });
     setModalMode('edit');
   };
 
-  // Save Modal (Create / Edit)
-  const handleSave = async (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
     setError('');
-    try {
-      let res;
-      if (activeTab === 'states') {
-        res = editItem ? await updateStateAPI(editItem.id, formData) : await createStateAPI(formData);
-      } else if (activeTab === 'districts') {
-        res = editItem ? await updateDistrictAPI(editItem.id, formData) : await createDistrictAPI(formData);
-      } else if (activeTab === 'zones') {
-        res = editItem ? await updateZoneAPI(editItem.id, formData) : await createZoneAPI(formData);
-      } else if (activeTab === 'boards') {
-        res = editItem ? await updateSchoolBoardAPI(editItem.id, formData) : await createSchoolBoardAPI(formData);
-      } else if (activeTab === 'schools') {
-        res = editItem ? await updateSchoolAPI(editItem.id, formData) : await createSchoolAPI(formData);
-      } else if (activeTab === 'teachers') {
-        res = editItem ? await updateTeacherAPI(editItem.id, formData) : await createTeacherAPI(formData);
-      }
-
-      if (res.success) {
-        setSuccess(`${activeTab.slice(0, -1)} saved successfully!`);
-        setModalMode(null);
-        fetchData();
-        fetchSummary();
-        loadReferenceData();
-        setTimeout(() => setSuccess(''), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || 'Operation failed');
-    }
+    saveMutation.mutate({
+      mode: modalMode,
+      currentTab: activeTab,
+      editObj: editItem,
+      formValues: formData,
+    });
   };
 
-  // Delete Handler
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!window.confirm('Are you sure you want to delete this record?')) return;
-    try {
-      let res;
-      if (activeTab === 'states') res = await deleteStateAPI(id);
-      else if (activeTab === 'districts') res = await deleteDistrictAPI(id);
-      else if (activeTab === 'zones') res = await deleteZoneAPI(id);
-      else if (activeTab === 'boards') res = await deleteSchoolBoardAPI(id);
-      else if (activeTab === 'schools') res = await deleteSchoolAPI(id);
-      else if (activeTab === 'teachers') res = await deleteTeacherAPI(id);
-
-      if (res.success) {
-        setSuccess('Deleted successfully');
-        fetchData();
-        fetchSummary();
-        loadReferenceData();
-        setTimeout(() => setSuccess(''), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to delete item');
-    }
+    setError('');
+    deleteMutation.mutate({
+      currentTab: activeTab,
+      id,
+    });
   };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setSelectedStateId('');
+    setSelectedDistrictId('');
+    setSelectedZoneId('');
+    setSelectedBoardId('');
+    setSelectedSchoolId('');
+    setSchoolTypeFilter('');
+    setSearchInput('');
+    setDebouncedSearch('');
+    setPage(1);
+  };
+
+  const isFiltered = Boolean(
+    selectedStateId ||
+    selectedDistrictId ||
+    selectedZoneId ||
+    selectedBoardId ||
+    selectedSchoolId ||
+    schoolTypeFilter ||
+    searchInput.trim()
+  );
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-[#0b0f19]">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 md:pl-[260px] pt-[70px]">
         <Navbar />
 
-        <div className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -253,42 +426,52 @@ const MasterData = () => {
                 Master Data Center
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Manage complete hierarchy: State → District → Zone → School Board → Public/Private School → Teachers
+                Manage complete hierarchy with TanStack Query caching: State → District → Zone → School Board → Public/Private School → Teachers
               </p>
             </div>
 
-            {canCreate && (
+            <div className="flex items-center gap-2.5 flex-wrap">
               <button
-                onClick={openCreateModal}
-                className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all flex items-center gap-2 cursor-pointer"
+                onClick={() => navigate('/districts')}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold border border-indigo-200/80 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <Plus size={16} /> Add New {activeTab.slice(0, -1).toUpperCase()}
+                <MapPin size={14} />
+                <span>Districts & Territory View</span>
               </button>
-            )}
+
+              {canCreate && (
+                <button
+                  onClick={openCreateModal}
+                  className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-500/20 hover:brightness-110 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus size={16} /> Add New {activeTab.slice(0, -1).toUpperCase()}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Toast Messages */}
           {error && (
             <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-between animate-fade-in">
               <span>{error}</span>
-              <button onClick={() => setError('')} className="p-1"><X size={14} /></button>
+              <button onClick={() => setError('')} className="p-1 cursor-pointer"><X size={14} /></button>
             </div>
           )}
           {success && (
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between animate-fade-in">
               <span>{success}</span>
-              <button onClick={() => setSuccess('')} className="p-1"><X size={14} /></button>
+              <button onClick={() => setSuccess('')} className="p-1 cursor-pointer"><X size={14} /></button>
             </div>
           )}
 
-          {/* Overview Summary Widgets */}
+          {/* Overview Summary KPI Widgets */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <KpiCard
               title="States"
               value={summary.statesCount}
               icon={<MapPin size={14} />}
               accentColor="indigo"
-              onClick={() => setActiveTab('states')}
+              onClick={() => handleTabChange('states')}
               isActive={activeTab === 'states'}
             />
 
@@ -297,7 +480,7 @@ const MasterData = () => {
               value={summary.districtsCount}
               icon={<Building size={14} />}
               accentColor="purple"
-              onClick={() => setActiveTab('districts')}
+              onClick={() => handleTabChange('districts')}
               isActive={activeTab === 'districts'}
             />
 
@@ -306,7 +489,7 @@ const MasterData = () => {
               value={summary.zonesCount}
               icon={<Navigation size={14} />}
               accentColor="cyan"
-              onClick={() => setActiveTab('zones')}
+              onClick={() => handleTabChange('zones')}
               isActive={activeTab === 'zones'}
             />
 
@@ -315,7 +498,7 @@ const MasterData = () => {
               value={summary.boardsCount}
               icon={<BookOpen size={14} />}
               accentColor="amber"
-              onClick={() => setActiveTab('boards')}
+              onClick={() => handleTabChange('boards')}
               isActive={activeTab === 'boards'}
             />
 
@@ -324,7 +507,7 @@ const MasterData = () => {
               value={summary.schoolsCount}
               icon={<SchoolIcon size={14} />}
               accentColor="emerald"
-              onClick={() => setActiveTab('schools')}
+              onClick={() => handleTabChange('schools')}
               isActive={activeTab === 'schools'}
             />
 
@@ -333,251 +516,630 @@ const MasterData = () => {
               value={summary.teachersCount}
               icon={<Users size={14} />}
               accentColor="rose"
-              onClick={() => setActiveTab('teachers')}
+              onClick={() => handleTabChange('teachers')}
               isActive={activeTab === 'teachers'}
             />
           </div>
 
-          {/* Hierarchical Breadcrumb Bar */}
+          {/* Hierarchical Breadcrumb Navigation */}
           <div className="glass-card p-3 flex items-center gap-2 text-xs font-bold overflow-x-auto text-slate-600 dark:text-slate-300">
-            <button onClick={() => setActiveTab('states')} className={`hover:text-indigo-500 ${activeTab === 'states' ? 'text-indigo-600 font-black' : ''}`}>States</button>
-            <ChevronRight size={12} className="text-slate-400" />
-            <button onClick={() => setActiveTab('districts')} className={`hover:text-purple-500 ${activeTab === 'districts' ? 'text-purple-600 font-black' : ''}`}>Districts</button>
-            <ChevronRight size={12} className="text-slate-400" />
-            <button onClick={() => setActiveTab('zones')} className={`hover:text-cyan-500 ${activeTab === 'zones' ? 'text-cyan-600 font-black' : ''}`}>Zones</button>
-            <ChevronRight size={12} className="text-slate-400" />
-            <button onClick={() => setActiveTab('boards')} className={`hover:text-amber-500 ${activeTab === 'boards' ? 'text-amber-600 font-black' : ''}`}>School Boards (CBSE/State)</button>
-            <ChevronRight size={12} className="text-slate-400" />
-            <button onClick={() => setActiveTab('schools')} className={`hover:text-emerald-500 ${activeTab === 'schools' ? 'text-emerald-600 font-black' : ''}`}>Schools (Public/Private)</button>
-            <ChevronRight size={12} className="text-slate-400" />
-            <button onClick={() => setActiveTab('teachers')} className={`hover:text-rose-500 ${activeTab === 'teachers' ? 'text-rose-600 font-black' : ''}`}>Teachers & Phones</button>
+            <button
+              onClick={() => handleTabChange('states')}
+              className={`hover:text-indigo-500 cursor-pointer transition-colors ${activeTab === 'states' ? 'text-indigo-600 dark:text-indigo-400 font-black' : ''}`}
+            >
+              States
+            </button>
+            <ChevronRight size={12} className="text-slate-400 shrink-0" />
+            <button
+              onClick={() => handleTabChange('districts')}
+              className={`hover:text-purple-500 cursor-pointer transition-colors ${activeTab === 'districts' ? 'text-purple-600 dark:text-purple-400 font-black' : ''}`}
+            >
+              Districts
+            </button>
+            <ChevronRight size={12} className="text-slate-400 shrink-0" />
+            <button
+              onClick={() => handleTabChange('zones')}
+              className={`hover:text-cyan-500 cursor-pointer transition-colors ${activeTab === 'zones' ? 'text-cyan-600 dark:text-cyan-400 font-black' : ''}`}
+            >
+              Zones
+            </button>
+            <ChevronRight size={12} className="text-slate-400 shrink-0" />
+            <button
+              onClick={() => handleTabChange('boards')}
+              className={`hover:text-amber-500 cursor-pointer transition-colors ${activeTab === 'boards' ? 'text-amber-600 dark:text-amber-400 font-black' : ''}`}
+            >
+              School Boards
+            </button>
+            <ChevronRight size={12} className="text-slate-400 shrink-0" />
+            <button
+              onClick={() => handleTabChange('schools')}
+              className={`hover:text-emerald-500 cursor-pointer transition-colors ${activeTab === 'schools' ? 'text-emerald-600 dark:text-emerald-400 font-black' : ''}`}
+            >
+              Schools
+            </button>
+            <ChevronRight size={12} className="text-slate-400 shrink-0" />
+            <button
+              onClick={() => handleTabChange('teachers')}
+              className={`hover:text-rose-500 cursor-pointer transition-colors ${activeTab === 'teachers' ? 'text-rose-600 dark:text-rose-400 font-black' : ''}`}
+            >
+              Teachers & Staff
+            </button>
           </div>
 
-          {/* Main Content Table Section */}
-          <div className="glass-card p-6 space-y-4">
-            {/* Cascading Filter Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/5">
+          {/* Main Table Card */}
+          <div className="glass-card p-4 md:p-6 space-y-4">
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-slate-200/60 dark:border-white/5">
+              {/* Cascading Filter Controls */}
               <div className="flex items-center gap-2 flex-wrap text-xs">
                 {activeTab === 'districts' && (
                   <SearchSelect
                     placeholder="All States"
                     searchPlaceholder="Search states..."
-                    options={[{ value: '', label: 'All States' }, ...states.map(s => ({ value: s.id, label: s.name }))]}
+                    options={[{ value: '', label: 'All States' }, ...refStates.map(s => ({ value: s.id, label: s.name }))]}
                     value={selectedStateId}
-                    onChange={setSelectedStateId}
+                    onChange={handleStateFilterChange}
                     accentColor="indigo"
                   />
                 )}
 
                 {activeTab === 'zones' && (
-                  <SearchSelect
-                    placeholder="All Districts"
-                    searchPlaceholder="Search districts..."
-                    options={[{ value: '', label: 'All Districts' }, ...districts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))]}
-                    value={selectedDistrictId}
-                    onChange={setSelectedDistrictId}
-                    accentColor="purple"
-                  />
+                  <>
+                    <SearchSelect
+                      placeholder="Filter State..."
+                      searchPlaceholder="Search states..."
+                      options={[{ value: '', label: 'All States' }, ...refStates.map(s => ({ value: s.id, label: s.name }))]}
+                      value={selectedStateId}
+                      onChange={handleStateFilterChange}
+                      accentColor="indigo"
+                    />
+                    <SearchSelect
+                      placeholder="All Districts"
+                      searchPlaceholder="Search districts..."
+                      options={[{ value: '', label: 'All Districts' }, ...refDistricts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))]}
+                      value={selectedDistrictId}
+                      onChange={handleDistrictFilterChange}
+                      accentColor="purple"
+                    />
+                  </>
                 )}
 
                 {activeTab === 'schools' && (
                   <>
                     <SearchSelect
+                      placeholder="Filter State..."
+                      searchPlaceholder="Search states..."
+                      options={[{ value: '', label: 'All States' }, ...refStates.map(s => ({ value: s.id, label: s.name }))]}
+                      value={selectedStateId}
+                      onChange={handleStateFilterChange}
+                      accentColor="indigo"
+                    />
+
+                    <SearchSelect
+                      placeholder="All Districts"
+                      searchPlaceholder="Search districts..."
+                      options={[{ value: '', label: 'All Districts' }, ...refDistricts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))]}
+                      value={selectedDistrictId}
+                      onChange={handleDistrictFilterChange}
+                      accentColor="purple"
+                    />
+
+                    <SearchSelect
                       placeholder="All Zones"
                       searchPlaceholder="Search zones..."
-                      options={[{ value: '', label: 'All Zones' }, ...zones.map(z => ({ value: z.id, label: z.name }))]}
+                      options={[{ value: '', label: 'All Zones' }, ...refZones.map(z => ({ value: z.id, label: z.name }))]}
                       value={selectedZoneId}
-                      onChange={setSelectedZoneId}
+                      onChange={handleZoneFilterChange}
                       accentColor="cyan"
                     />
 
                     <SearchSelect
-                      placeholder="All Boards (CBSE/State)"
+                      placeholder="All Boards"
                       searchPlaceholder="Search boards..."
-                      options={[{ value: '', label: 'All Boards (CBSE/State)' }, ...boards.map(b => ({ value: b.id, label: b.name }))]}
+                      options={[{ value: '', label: 'All Boards (CBSE/State)' }, ...refBoards.map(b => ({ value: b.id, label: b.name }))]}
                       value={selectedBoardId}
-                      onChange={setSelectedBoardId}
+                      onChange={handleBoardFilterChange}
                       accentColor="amber"
                     />
 
                     <SearchSelect
-                      placeholder="All Types (Public & Private)"
+                      placeholder="All Types"
                       searchPlaceholder="Filter type..."
                       options={[
-                        { value: '', label: 'All Types (Public & Private)' },
+                        { value: '', label: 'All Types (Public/Private)' },
                         { value: 'PUBLIC', label: 'PUBLIC SCHOOL' },
                         { value: 'PRIVATE', label: 'PRIVATE SCHOOL' },
                       ]}
                       value={schoolTypeFilter}
-                      onChange={setSchoolTypeFilter}
+                      onChange={handleTypeFilterChange}
                       accentColor="emerald"
                     />
                   </>
                 )}
 
                 {activeTab === 'teachers' && (
-                  <SearchSelect
-                    placeholder="All Schools"
-                    searchPlaceholder="Search schools..."
-                    options={[{ value: '', label: 'All Schools' }, ...schools.map(s => ({ value: s.id, label: `${s.name} (${s.type})` }))]}
-                    value={selectedSchoolId}
-                    onChange={setSelectedSchoolId}
-                    accentColor="rose"
-                  />
+                  <>
+                    <SearchSelect
+                      placeholder="Filter District..."
+                      searchPlaceholder="Search districts..."
+                      options={[{ value: '', label: 'All Districts' }, ...allDistricts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))]}
+                      value={selectedDistrictId}
+                      onChange={handleDistrictFilterChange}
+                      accentColor="purple"
+                    />
+
+                    <SearchSelect
+                      placeholder="Filter Zone..."
+                      searchPlaceholder="Search zones..."
+                      options={[{ value: '', label: 'All Zones' }, ...refZones.map(z => ({ value: z.id, label: z.name }))]}
+                      value={selectedZoneId}
+                      onChange={handleZoneFilterChange}
+                      accentColor="cyan"
+                    />
+
+                    <SearchSelect
+                      placeholder="All Schools"
+                      searchPlaceholder="Search schools..."
+                      options={[{ value: '', label: 'All Schools' }, ...refSchools.map(s => ({ value: s.id, label: `${s.name} (${s.type})` }))]}
+                      value={selectedSchoolId}
+                      onChange={handleSchoolFilterChange}
+                      accentColor="rose"
+                    />
+                  </>
+                )}
+
+                {isFiltered && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors flex items-center gap-1 cursor-pointer"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Reset</span>
+                  </button>
                 )}
               </div>
 
-              {/* Search input */}
-              <div className="relative w-full sm:w-64">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              {/* Debounced Search Bar */}
+              <div className="relative w-full sm:w-72">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder={`Search ${activeTab}...`}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-dark-deep border border-slate-200/80 dark:border-white/10 rounded-xl focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
                 />
+                {searchInput ? (
+                  <button
+                    onClick={() => { setSearchInput(''); setDebouncedSearch(''); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                  >
+                    <X size={13} />
+                  </button>
+                ) : isTabFetching ? (
+                  <RefreshCw size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500 animate-spin" />
+                ) : null}
               </div>
             </div>
 
             {/* List Table */}
-            {loading ? (
-              <div className="py-12 text-center text-xs font-semibold text-slate-400 flex items-center justify-center gap-2">
-                <RefreshCw size={16} className="animate-spin text-indigo-500" /> Loading {activeTab}...
+            {isTabLoading && items.length === 0 ? (
+              <div className="py-16 text-center text-xs font-semibold text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw size={24} className="animate-spin text-indigo-500" />
+                <span>Loading {activeTab} records with TanStack Query...</span>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 text-xs">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                  <Filter size={20} />
+                </div>
+                <p className="font-bold text-sm text-slate-700 dark:text-slate-200">No {activeTab} found</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                  {isFiltered ? 'No records match your active search or filters. Try clearing filters.' : `No ${activeTab} records have been added yet.`}
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  {isFiltered && (
+                    <button
+                      onClick={handleResetFilters}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-xs hover:bg-slate-200 dark:hover:bg-white/15 transition-colors cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                  {canCreate && (
+                    <button
+                      onClick={openCreateModal}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-lg text-xs hover:brightness-110 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+                    >
+                      <Plus size={14} /> Add {activeTab.slice(0, -1)}
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100/50 dark:bg-white/5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  <thead className="bg-slate-100/60 dark:bg-white/5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-white/5">
                     <tr>
-                      {activeTab === 'states' && (<><th>State Name</th><th>Code</th><th>Districts</th><th className="text-right">Actions</th></>)}
-                      {activeTab === 'districts' && (<><th>District Name</th><th>State</th><th>Zones</th><th className="text-right">Actions</th></>)}
-                      {activeTab === 'zones' && (<><th>Zone Name</th><th>District</th><th>State</th><th>Schools</th><th className="text-right">Actions</th></>)}
-                      {activeTab === 'boards' && (<><th>Board Name</th><th>Code</th><th>Schools Count</th><th className="text-right">Actions</th></>)}
-                      {activeTab === 'schools' && (<><th>School Name</th><th>Type</th><th>Board</th><th>Zone</th><th>Teachers</th><th className="text-right">Actions</th></>)}
-                      {activeTab === 'teachers' && (<><th>Teacher Name</th><th>Phone Number</th><th>School</th><th>Subject</th><th className="text-right">Actions</th></>)}
+                      {activeTab === 'states' && (
+                        <>
+                          <th className="py-3 px-3">State Name</th>
+                          <th className="py-3 px-3">Code</th>
+                          <th className="py-3 px-3">Districts</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
+                      {activeTab === 'districts' && (
+                        <>
+                          <th className="py-3 px-3">District Name</th>
+                          <th className="py-3 px-3">State</th>
+                          <th className="py-3 px-3">Zones Count</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
+                      {activeTab === 'zones' && (
+                        <>
+                          <th className="py-3 px-3">Zone Name</th>
+                          <th className="py-3 px-3">District</th>
+                          <th className="py-3 px-3">State</th>
+                          <th className="py-3 px-3">Schools Count</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
+                      {activeTab === 'boards' && (
+                        <>
+                          <th className="py-3 px-3">Board Name</th>
+                          <th className="py-3 px-3">Code</th>
+                          <th className="py-3 px-3">Schools Count</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
+                      {activeTab === 'schools' && (
+                        <>
+                          <th className="py-3 px-3">School Name</th>
+                          <th className="py-3 px-3">Type</th>
+                          <th className="py-3 px-3">Board</th>
+                          <th className="py-3 px-3">Zone & District</th>
+                          <th className="py-3 px-3">Teachers</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
+                      {activeTab === 'teachers' && (
+                        <>
+                          <th className="py-3 px-3">Teacher Name</th>
+                          <th className="py-3 px-3">Phone Number</th>
+                          <th className="py-3 px-3">School & Location</th>
+                          <th className="py-3 px-3">Subject</th>
+                          <th className="py-3 px-3 text-right">Actions</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
-                    {activeTab === 'states' && states.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><MapPin size={14} className="text-indigo-500" />{item.name}</td>
-                        <td><span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 font-extrabold text-[10px]">{item.code || '—'}</span></td>
-                        <td>{item.districts?.length || 0} districts</td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
+                    {activeTab === 'states' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <MapPin size={14} className="text-indigo-500 shrink-0" />
+                          <span>{item.name}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px]">
+                            {item.code || '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-300">
+                          {item._count?.districts !== undefined ? item._count.districts : (item.districts?.length || 0)} districts
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                              title="Edit State"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete State"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
 
-                    {activeTab === 'districts' && districts.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Building size={14} className="text-purple-500" />{item.name}</td>
-                        <td><span className="font-semibold text-purple-600">{item.state?.name}</span></td>
-                        <td>{item.zones?.length || 0} zones</td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
+                    {activeTab === 'districts' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Building size={14} className="text-purple-500 shrink-0" />
+                          <span>{item.name}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-purple-600 dark:text-purple-400">{item.state?.name || '—'}</span>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-300">
+                          {item._count?.zones !== undefined ? item._count.zones : (item.zones?.length || 0)} zones
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
+                              title="Edit District"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete District"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
 
-                    {activeTab === 'zones' && zones.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Navigation size={14} className="text-cyan-500" />{item.name}</td>
-                        <td>{item.district?.name}</td>
-                        <td>{item.district?.state?.name}</td>
-                        <td>{item.schools?.length || 0} schools</td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
+                    {activeTab === 'zones' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Navigation size={14} className="text-cyan-500 shrink-0" />
+                          <span>{item.name}</span>
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-purple-600 dark:text-purple-400">
+                          {item.district?.name || '—'}
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 dark:text-slate-400">
+                          {item.district?.state?.name || '—'}
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-300">
+                          {item._count?.schools !== undefined ? item._count.schools : (item.schools?.length || 0)} schools
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 transition-colors cursor-pointer"
+                              title="Edit Zone"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete Zone"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
 
-                    {activeTab === 'boards' && boards.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><BookOpen size={14} className="text-amber-500" />{item.name}</td>
-                        <td><span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 font-extrabold text-[10px]">{item.shortName || item.code || '—'}</span></td>
-                        <td>{item.schools?.length || 0} schools ({item.classes?.length || 0} classes)</td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
+                    {activeTab === 'boards' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <BookOpen size={14} className="text-amber-500 shrink-0" />
+                          <span>{item.name}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[10px]">
+                            {item.shortName || item.code || '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-300">
+                          {item._count?.schools !== undefined ? item._count.schools : (item.schools?.length || 0)} schools
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer"
+                              title="Edit Board"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete Board"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
 
-                    {activeTab === 'schools' && schools.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><SchoolIcon size={14} className="text-emerald-500" />{item.name}</td>
-                        <td>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black ${item.type === 'PUBLIC' ? 'bg-blue-500/10 text-blue-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                    {activeTab === 'schools' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100">
+                          <div className="flex items-center gap-2">
+                            <SchoolIcon size={14} className="text-emerald-500 shrink-0" />
+                            <span>{item.name}</span>
+                          </div>
+                          {item.address && (
+                            <div className="text-[10px] text-slate-400 font-normal pl-5 truncate max-w-xs">{item.address}</div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-wider ${item.type === 'PUBLIC' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
                             {item.type}
                           </span>
                         </td>
-                        <td><span className="font-semibold text-amber-600">{item.board?.name}</span></td>
-                        <td>{item.zone?.name} ({item.zone?.district?.name})</td>
-                        <td>{item.teachers?.length || 0} teachers</td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
+                        <td className="py-3 px-3">
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">{item.board?.name || '—'}</span>
                         </td>
-                      </tr>
-                    ))}
-
-                    {activeTab === 'schools' && schools.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
-                          <SchoolIcon size={32} className="mx-auto opacity-30 mb-2" />
-                          <p className="font-bold text-slate-600 dark:text-slate-300">No schools found matching selected filters.</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Try clearing your filters or create a new school.</p>
-                          {canCreate && (
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300">
+                          <div className="font-medium">{item.zone?.name || '—'}</div>
+                          <div className="text-[10px] text-slate-400">{item.zone?.district?.name} ({item.zone?.district?.state?.name})</div>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-slate-600 dark:text-slate-300">
+                          {item._count?.teachers !== undefined ? item._count.teachers : (item.teachers?.length || 0)} teachers
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
                             <button
-                              onClick={openCreateModal}
-                              className="mt-3 px-3 py-1.5 bg-emerald-500 text-white font-bold rounded-lg text-xs hover:bg-emerald-600 inline-flex items-center gap-1"
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                              title="Edit School"
                             >
-                              <Plus size={14} /> Add New School
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete School"
+                            >
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </td>
                       </tr>
-                    )}
-
-                    {activeTab === 'teachers' && teachers.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-white/2">
-                        <td className="py-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Users size={14} className="text-rose-500" />{item.name}</td>
-                        <td className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1"><Phone size={12} className="text-slate-400" />{item.phone}</td>
-                        <td>
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">{item.school?.name}</div>
-                          <div className="text-[10px] text-slate-400">{item.school?.board?.name} · {item.school?.type}</div>
-                        </td>
-                        <td><span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 font-extrabold text-[10px]">{item.subject || 'General'}</span></td>
-                        <td className="text-right space-x-1">
-                          {canEdit && <button onClick={() => openEditModal(item)} className="p-1 hover:text-indigo-500"><Edit2 size={13} /></button>}
-                          {canDelete && <button onClick={() => handleDelete(item.id)} className="p-1 hover:text-rose-500"><Trash2 size={13} /></button>}
-                        </td>
-                      </tr>
                     ))}
 
-                    {activeTab === 'teachers' && teachers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-400 text-xs">
-                          <Users size={32} className="mx-auto opacity-30 mb-2" />
-                          <p className="font-bold text-slate-600 dark:text-slate-300">No teachers found matching selected filters.</p>
-                          {canCreate && (
+                    {activeTab === 'teachers' && items.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Users size={14} className="text-rose-500 shrink-0" />
+                          <span>{item.name}</span>
+                        </td>
+                        <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-200">
+                          <div className="flex items-center gap-1.5">
+                            <Phone size={12} className="text-slate-400" />
+                            <span>{item.phone}</span>
+                          </div>
+                          {item.email && (
+                            <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1 mt-0.5">
+                              <Mail size={10} />
+                              <span>{item.email}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">{item.school?.name || '—'}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {item.school?.zone?.name} · {item.school?.board?.name} ({item.school?.type})
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px]">
+                            {item.subject || 'General'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right space-x-1">
+                          {canEdit && (
                             <button
-                              onClick={openCreateModal}
-                              className="mt-3 px-3 py-1.5 bg-rose-500 text-white font-bold rounded-lg text-xs hover:bg-rose-600 inline-flex items-center gap-1"
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Edit Teacher"
                             >
-                              <Plus size={14} /> Add New Teacher
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Delete Teacher"
+                            >
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </td>
                       </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination Controls Bar */}
+            {items.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200/60 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400">
+                {/* Entry Range and Total */}
+                <div className="flex items-center gap-3">
+                  <span>
+                    Showing <strong className="text-slate-700 dark:text-slate-200">{((page - 1) * limit) + 1}</strong> to{' '}
+                    <strong className="text-slate-700 dark:text-slate-200">{Math.min(page * limit, total)}</strong> of{' '}
+                    <strong className="text-slate-700 dark:text-slate-200">{total}</strong> records
+                  </span>
+
+                  {/* Limit per page selector */}
+                  <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-white/10">
+                    <span>Per page:</span>
+                    <select
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      className="bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1 font-bold text-slate-700 dark:text-slate-200 text-xs focus:outline-none cursor-pointer"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Page Navigation Buttons */}
+                <div className="flex items-center gap-1 self-center sm:self-auto">
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page <= 1}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+
+                  <div className="px-3 py-1 font-semibold text-xs text-slate-700 dark:text-slate-200">
+                    Page <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{currentPage}</span> of{' '}
+                    <span className="font-extrabold">{totalPages}</span>
+                  </div>
+
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page >= totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={14} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -592,7 +1154,9 @@ const MasterData = () => {
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
                 {modalMode === 'create' ? 'Add' : 'Edit'} {activeTab.slice(0, -1).toUpperCase()}
               </h3>
-              <button onClick={() => setModalMode(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X size={16} /></button>
+              <button onClick={() => setModalMode(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg cursor-pointer">
+                <X size={16} />
+              </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-3 text-xs">
@@ -604,10 +1168,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g. West Bengal"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                   <div>
@@ -615,9 +1179,9 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.code || ''}
-                      onChange={e => setFormData({ ...formData, code: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                       placeholder="e.g. WB"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none uppercase font-bold"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none uppercase font-bold"
                     />
                   </div>
                 </>
@@ -630,9 +1194,9 @@ const MasterData = () => {
                     required
                     placeholder="Choose State..."
                     searchPlaceholder="Search states..."
-                    options={states.map(s => ({ value: s.id, label: s.name }))}
+                    options={refStates.map((s) => ({ value: s.id, label: s.name }))}
                     value={formData.stateId || ''}
-                    onChange={v => setFormData({ ...formData, stateId: v })}
+                    onChange={(v) => setFormData({ ...formData, stateId: v })}
                     accentColor="indigo"
                   />
                   <div>
@@ -640,10 +1204,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g. Kolkata"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                 </>
@@ -656,9 +1220,9 @@ const MasterData = () => {
                     required
                     placeholder="Choose District..."
                     searchPlaceholder="Search districts..."
-                    options={districts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))}
+                    options={allDistricts.map((d) => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))}
                     value={formData.districtId || ''}
-                    onChange={v => setFormData({ ...formData, districtId: v })}
+                    onChange={(v) => setFormData({ ...formData, districtId: v })}
                     accentColor="purple"
                   />
                   <div>
@@ -666,10 +1230,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. North Zone"
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. North 24 Parganas Urban Zone"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                 </>
@@ -682,10 +1246,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. CBSE / ICSE / State Board"
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Central Board of Secondary Education"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                   <div>
@@ -693,9 +1257,9 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.shortName || formData.code || ''}
-                      onChange={e => setFormData({ ...formData, shortName: e.target.value, code: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, shortName: e.target.value, code: e.target.value })}
                       placeholder="e.g. CBSE"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none uppercase font-bold"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none uppercase font-bold"
                     />
                   </div>
                 </>
@@ -708,10 +1272,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. St. Xavier's High School"
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. St. Xavier's Collegiate School"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                   <SearchSelect
@@ -723,7 +1287,7 @@ const MasterData = () => {
                       { value: 'PUBLIC', label: 'PUBLIC SCHOOL' },
                     ]}
                     value={formData.type || 'PRIVATE'}
-                    onChange={v => setFormData({ ...formData, type: v })}
+                    onChange={(v) => setFormData({ ...formData, type: v })}
                     accentColor="emerald"
                   />
                   <SearchSelect
@@ -731,9 +1295,9 @@ const MasterData = () => {
                     required
                     placeholder="Choose Zone..."
                     searchPlaceholder="Search zones..."
-                    options={zones.map(z => ({ value: z.id, label: `${z.name} (${z.district?.name || ''})` }))}
+                    options={allZones.map((z) => ({ value: z.id, label: `${z.name} (${z.district?.name || ''})` }))}
                     value={formData.zoneId || ''}
-                    onChange={v => setFormData({ ...formData, zoneId: v })}
+                    onChange={(v) => setFormData({ ...formData, zoneId: v })}
                     accentColor="cyan"
                   />
                   <SearchSelect
@@ -741,11 +1305,21 @@ const MasterData = () => {
                     required
                     placeholder="Choose Board..."
                     searchPlaceholder="Search boards..."
-                    options={boards.map(b => ({ value: b.id, label: b.name }))}
+                    options={refBoards.map((b) => ({ value: b.id, label: b.name }))}
                     value={formData.boardId || ''}
-                    onChange={v => setFormData({ ...formData, boardId: v })}
+                    onChange={(v) => setFormData({ ...formData, boardId: v })}
                     accentColor="amber"
                   />
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Address</label>
+                    <input
+                      type="text"
+                      value={formData.address || ''}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="e.g. 30 Park Street, Kolkata - 700016"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                    />
+                  </div>
                 </>
               )}
 
@@ -756,9 +1330,9 @@ const MasterData = () => {
                     required
                     placeholder="Choose School..."
                     searchPlaceholder="Search schools..."
-                    options={schools.map(s => ({ value: s.id, label: `${s.name} (${s.type})` }))}
+                    options={allSchools.map((s) => ({ value: s.id, label: `${s.name} (${s.type})` }))}
                     value={formData.schoolId || ''}
-                    onChange={v => setFormData({ ...formData, schoolId: v })}
+                    onChange={(v) => setFormData({ ...formData, schoolId: v })}
                     accentColor="rose"
                   />
                   <div>
@@ -766,10 +1340,10 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.name || ''}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Prof. Ananya Sen"
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Prof. Ananya Sen"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                   <div>
@@ -777,10 +1351,20 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.phone || ''}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="9876543210"
                       required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none font-bold"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="ananya.sen@example.com"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                   <div>
@@ -788,9 +1372,9 @@ const MasterData = () => {
                     <input
                       type="text"
                       value={formData.subject || ''}
-                      onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                       placeholder="e.g. Mathematics"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
                     />
                   </div>
                 </>
@@ -800,15 +1384,17 @@ const MasterData = () => {
                 <button
                   type="button"
                   onClick={() => setModalMode(null)}
-                  className="flex-1 py-2.5 border border-slate-200 rounded-xl font-bold text-slate-600"
+                  className="flex-1 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20"
+                  disabled={saveMutation.isPending}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Save Changes
+                  {saveMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : null}
+                  <span>{saveMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>

@@ -45,4 +45,11 @@ router.post('/teachers', checkDynamicPermission('/master-data', 'canCreate'), ma
 router.put('/teachers/:id', checkDynamicPermission('/master-data', 'canEdit'), masterDataController.updateTeacher);
 router.delete('/teachers/:id', checkDynamicPermission('/master-data', 'canDelete'), masterDataController.deleteTeacher);
 
+// Initialize / Sync West Bengal Master Data (All Districts & Zones)
+router.post('/init-west-bengal', masterDataController.initWestBengalMasterData);
+
+// User District Access Management (Superadmin/Admin)
+router.get('/user-access', masterDataController.getUserDistrictAccess);
+router.post('/user-access', masterDataController.updateUserDistrictAccess);
+
 module.exports = router;

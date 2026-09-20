@@ -1,9 +1,34 @@
 const prisma = require('../../lib/prisma');
 const { logActivity } = require('../../lib/activity-logger');
 
+async function ensureDistrictsMenu() {
+  try {
+    let m = await prisma.menu.findFirst({
+      where: {
+        OR: [{ path: '/districts' }, { name: 'Districts' }],
+      },
+    });
+    if (!m) {
+      m = await prisma.menu.create({
+        data: {
+          name: 'Districts',
+          path: '/districts',
+          iconName: 'MapPin',
+          roles: ['SUPERADMIN', 'ADMIN'],
+          order: 9,
+        },
+      });
+    }
+    return m;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Get only menus visible to current user's role (Dynamic permission lookup)
 exports.getVisibleMenus = async (req, res, next) => {
   try {
+    await ensureDistrictsMenu();
     const menusAll = await prisma.menu.findMany();
     const role = req.user.role;
 
@@ -57,6 +82,7 @@ exports.getVisibleMenus = async (req, res, next) => {
 // Get all permission flags for the caller's role (All roles)
 exports.getMyPermissions = async (req, res, next) => {
   try {
+    await ensureDistrictsMenu();
     const menus = await prisma.menu.findMany();
     const role = req.user.role;
 
