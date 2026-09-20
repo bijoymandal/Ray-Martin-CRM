@@ -1,9 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
-const prisma = new PrismaClient();
+const defaultPrisma = new PrismaClient();
 
-async function main() {
+async function seedDatabase(prisma = defaultPrisma, { clean = false } = {}) {
   console.log('Seeding database...');
 
   // Clean existing data
@@ -218,7 +218,7 @@ async function main() {
     data: {
       name: 'Master Data',
       path: '/master-data',
-      iconName: 'MapPin',
+      iconName: 'Database',
       roles: ['SUPERADMIN', 'ADMIN'],
       order: 9,
     },
@@ -232,14 +232,33 @@ async function main() {
     BOOKSELLER: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   });
 
-  // 10. Stock Management Menu
+  // 10. Districts Menu (Dedicated District & Zone Access for Superadmin)
+  const mDistricts = await prisma.menu.create({
+    data: {
+      name: 'Districts',
+      path: '/districts',
+      iconName: 'MapPin',
+      roles: ['SUPERADMIN', 'ADMIN'],
+      order: 10,
+    },
+  });
+  await seedPermissions(mDistricts, {
+    SUPERADMIN: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    ADMIN:      { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    EDITOR:     { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    ACCOUNT:    { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    SALESMAN:   { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    BOOKSELLER: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+  });
+
+  // 11. Stock Management Menu
   const mStock = await prisma.menu.create({
     data: {
       name: 'Stock Management',
       path: '/stock',
       iconName: 'Package',
       roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'BOOKSELLER'],
-      order: 10,
+      order: 11,
     },
   });
   await seedPermissions(mStock, {
@@ -251,14 +270,14 @@ async function main() {
     BOOKSELLER: { canView: true, canCreate: false, canEdit: true, canDelete: false },
   });
 
-  // 11. Task Management Menu
+  // 12. Task Management Menu
   const mTasks = await prisma.menu.create({
     data: {
       name: 'Task Management',
       path: '/tasks',
       iconName: 'CheckSquare',
-      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'ACCOUNT', 'SALESMAN', 'BOOKSELLER'],
-      order: 11,
+      roles: ['SUPERADMIN', 'ADMIN', 'EDITOR', 'SALESMAN'],
+      order: 12,
     },
   });
   await seedPermissions(mTasks, {
@@ -451,11 +470,15 @@ async function main() {
   console.log('Seeding completed successfully!');
 }
 
-main()
-  .catch((e) => {
-    console.error('Error seeding database:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  seedDatabase(defaultPrisma, { clean: true })
+    .catch((e) => {
+      console.error('Error seeding database:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await defaultPrisma.$disconnect();
+    });
+}
+
+module.exports = { seedDatabase };
