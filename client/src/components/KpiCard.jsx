@@ -49,6 +49,7 @@ const KpiCard = ({
   title,
   value,
   subtitle,
+  subtext,
   icon,
   accentColor = 'indigo',
   onClick,
@@ -56,6 +57,16 @@ const KpiCard = ({
   badgeText,
 }) => {
   const colors = COLOR_MAPS[accentColor] || COLOR_MAPS.indigo;
+  const descriptionText = subtitle || subtext;
+
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) return icon;
+    if (typeof icon === 'function') {
+      return React.createElement(icon, { size: 16 });
+    }
+    return icon;
+  };
 
   return (
     <div
@@ -68,7 +79,7 @@ const KpiCard = ({
     >
       <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
         <span className="truncate">{title}</span>
-        {icon && <span className={`p-1.5 rounded-lg ${colors.bg} ${colors.text}`}>{icon}</span>}
+        {icon && <span className={`p-1.5 rounded-lg ${colors.bg} ${colors.text}`}>{renderIcon()}</span>}
       </div>
 
       <div className="flex items-baseline justify-between gap-2">
@@ -82,7 +93,7 @@ const KpiCard = ({
         )}
       </div>
 
-      {subtitle && <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{subtitle}</p>}
+      {descriptionText && <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{descriptionText}</p>}
     </div>
   );
 };
