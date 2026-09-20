@@ -7,6 +7,7 @@ import { logVisitAPI } from './services/api';
 import UserGuideModal from './components/guide/UserGuideModal';
 import InteractiveTour from './components/guide/InteractiveTour';
 import WelcomeOnboardingModal from './components/guide/WelcomeOnboardingModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Import Pages
 import Dashboard from './pages/Dashboard';
@@ -19,6 +20,7 @@ import ProductForm from './pages/ProductForm';
 import Marketing from './pages/Marketing';
 import SpecimenTracker from './pages/SpecimenTracker';
 import MasterData from './pages/MasterData';
+import Districts from './pages/Districts';
 import StockManagement from './pages/StockManagement';
 import TaskManagement from './pages/TaskManagement';
 import TaskNotificationPopup from './components/TaskNotificationPopup';
@@ -35,7 +37,7 @@ const ProtectedRoute = ({ children, menuPath, action }) => {
     if (isAuthenticated) {
       let name = '';
       if (menuPath) {
-        const perm = permissions.find(p => p.menu.path === menuPath);
+        const perm = permissions?.find((p) => p?.menu?.path === menuPath);
         name = perm?.menu?.name || menuPath;
       } else {
         name = 'Profile Settings';
@@ -61,13 +63,13 @@ const ProtectedRoute = ({ children, menuPath, action }) => {
   }
 
   // SUPERADMIN always bypasses all checks
-  if (user.role === 'SUPERADMIN') {
+  if (user?.role?.toUpperCase() === 'SUPERADMIN') {
     return children;
   }
 
   // Look up permissions inside dynamic state loaded from the DB
   if (menuPath) {
-    const perm = permissions.find(p => p.menu.path === menuPath);
+    const perm = permissions?.find((p) => p?.menu?.path === menuPath);
     if (!perm) {
       return <Navigate to="/" replace />;
     }
@@ -90,7 +92,8 @@ const App = () => {
   return (
     <GuideProvider>
       <LockScreen>
-        <Routes>
+        <ErrorBoundary>
+          <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -203,6 +206,14 @@ const App = () => {
             }
           />
           <Route
+            path="/districts"
+            element={
+              <ProtectedRoute menuPath="/districts">
+                <Districts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/stock"
             element={
               <ProtectedRoute menuPath="/stock">
@@ -222,6 +233,7 @@ const App = () => {
           {/* Fallback Route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ErrorBoundary>
         <TaskNotificationPopup />
         <UserGuideModal />
         <InteractiveTour />
