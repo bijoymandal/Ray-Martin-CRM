@@ -397,8 +397,8 @@ export const getMasterDataSummaryAPI = async () => {
 };
 
 // States
-export const getStatesAPI = async () => {
-  const response = await api.get('/masterdata/states');
+export const getStatesAPI = async (params = {}) => {
+  const response = await api.get('/masterdata/states', { params });
   return response.data;
 };
 export const createStateAPI = async (data) => {
@@ -415,8 +415,9 @@ export const deleteStateAPI = async (id) => {
 };
 
 // Districts
-export const getDistrictsAPI = async (stateId) => {
-  const response = await api.get('/masterdata/districts', { params: stateId ? { stateId } : {} });
+export const getDistrictsAPI = async (param) => {
+  const params = typeof param === 'string' ? (param ? { stateId: param } : {}) : (param || {});
+  const response = await api.get('/masterdata/districts', { params });
   return response.data;
 };
 export const createDistrictAPI = async (data) => {
@@ -433,8 +434,9 @@ export const deleteDistrictAPI = async (id) => {
 };
 
 // Zones
-export const getZonesAPI = async (districtId) => {
-  const response = await api.get('/masterdata/zones', { params: districtId ? { districtId } : {} });
+export const getZonesAPI = async (param) => {
+  const params = typeof param === 'string' ? (param ? { districtId: param } : {}) : (param || {});
+  const response = await api.get('/masterdata/zones', { params });
   return response.data;
 };
 export const createZoneAPI = async (data) => {
@@ -451,8 +453,8 @@ export const deleteZoneAPI = async (id) => {
 };
 
 // Boards
-export const getSchoolBoardsAPI = async () => {
-  const response = await api.get('/masterdata/boards');
+export const getSchoolBoardsAPI = async (params = {}) => {
+  const response = await api.get('/masterdata/boards', { params });
   return response.data;
 };
 export const createSchoolBoardAPI = async (data) => {
@@ -573,6 +575,28 @@ export const getMyTaskNotificationsAPI = async () => {
 
 export const markTaskAsReadAPI = async (id) => {
   const response = await api.patch(`/tasks/${id}/read`);
+  return response.data;
+};
+
+export const submitTaskReportAPI = async (id, data) => {
+  const response = await api.post(`/tasks/${id}/submit`, data);
+  return response.data;
+};
+
+// West Bengal Master Data Initializer / Sync
+export const initWestBengalMasterDataAPI = async () => {
+  const response = await api.post('/masterdata/init-west-bengal');
+  return response.data;
+};
+
+// User District Access Management Services
+export const getUserDistrictAccessAPI = async () => {
+  const response = await api.get('/masterdata/user-access');
+  return response.data;
+};
+
+export const updateUserDistrictAccessAPI = async (userId, districtIds) => {
+  const response = await api.post('/masterdata/user-access', { userId, districtIds });
   return response.data;
 };
 
