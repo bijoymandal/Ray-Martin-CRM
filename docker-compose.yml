@@ -7,15 +7,15 @@ services:
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27017", "--quiet", "--eval", "try { if (rs.status().ok === 1) quit(0); } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongodb:27017' }] }); }"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 5s
     networks:
       - crm-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
   mongo-init:
     image: mongo:7.0
@@ -50,8 +50,6 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-      mongo-init:
-        condition: service_completed_successfully
     networks:
       - crm-network
     restart: unless-stopped

@@ -1,6 +1,6 @@
 DOCKER := $(shell which docker 2>/dev/null || echo /usr/local/bin/docker)
 
-.PHONY: dev dev-build down clean logs logs-server logs-client logs-db prisma-generate prisma-push prisma-studio seed
+.PHONY: dev dev-build down clean logs logs-server logs-client logs-db prisma-generate prisma-push prisma-studio seed db-shell db-status db-init
 
 dev:
 	$(DOCKER) compose up
@@ -31,6 +31,15 @@ logs-client:
 
 logs-db:
 	$(DOCKER) compose logs -f mongodb
+
+db-shell:
+	$(DOCKER) compose exec mongodb mongosh crm
+
+db-status:
+	$(DOCKER) compose exec mongodb mongosh --eval "rs.status()"
+
+db-init:
+	$(DOCKER) compose exec mongodb mongosh --eval "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongodb:27017' }] }) }"
 
 prisma-generate:
 	$(DOCKER) compose exec server npx prisma generate
