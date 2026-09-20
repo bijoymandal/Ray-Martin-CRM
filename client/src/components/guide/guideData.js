@@ -200,6 +200,26 @@ export const CRM_MODULES = [
     workflowTip: 'Verify teacher school assignments before initiating bulk specimen dispatches.',
   },
   {
+    id: 'districts',
+    name: 'Districts & Territory Access',
+    path: '/districts',
+    icon: 'MapPin',
+    category: 'Academics',
+    badge: 'Territory Master',
+    color: 'from-indigo-600 to-purple-600',
+    tagline: 'West Bengal master districts, 514 zones, and sales rep territorial access.',
+    description:
+      'Superadmin command center for West Bengal districts, operational zones, and assigning territorial coverage to sales representatives.',
+    keyFeatures: [
+      'West Bengal 15 canonical districts and 514 operational zones',
+      'One-click synchronization with canonical master dump',
+      'User District Access control for sales representatives and staff',
+      'Zone-level breakdown, school counts, and task shortcuts',
+    ],
+    roles: ['Superadmin', 'Admin'],
+    workflowTip: 'Ensure sales reps are assigned their operational districts before allocating school-wise tasks.',
+  },
+  {
     id: 'marketing',
     name: 'Marketing & Outreach',
     path: '/marketing',
