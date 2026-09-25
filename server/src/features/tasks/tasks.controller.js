@@ -87,7 +87,17 @@ exports.getTaskSummary = async (req, res, next) => {
 // ─── GET TASKS LIST (FILTERABLE & SEARCHABLE) ──────────────────────────────
 exports.getTasks = async (req, res, next) => {
   try {
-    const { status, priority, category, assignedToId, myTasksOnly, search } = req.query;
+    const {
+      status,
+      priority,
+      category,
+      assignedToId,
+      myTasksOnly,
+      search,
+      districtId,
+      zoneId,
+      schoolId,
+    } = req.query;
 
     const where = {};
     if (status && status !== 'ALL') where.status = status;
@@ -101,6 +111,26 @@ exports.getTasks = async (req, res, next) => {
       ];
     } else if (assignedToId) {
       where.assignedToId = assignedToId;
+    }
+
+    if (schoolId) {
+      where.schoolId = schoolId;
+    } else if (zoneId) {
+      const zoneSchools = await prisma.school.findMany({
+        where: { zoneId },
+        select: { id: true },
+      });
+      where.schoolId = { in: zoneSchools.map((s) => s.id) };
+    } else if (districtId) {
+      const districtZones = await prisma.zone.findMany({
+        where: { districtId },
+        select: { id: true },
+      });
+      const districtSchools = await prisma.school.findMany({
+        where: { zoneId: { in: districtZones.map((z) => z.id) } },
+        select: { id: true },
+      });
+      where.schoolId = { in: districtSchools.map((s) => s.id) };
     }
 
     if (search) {
@@ -119,7 +149,27 @@ exports.getTasks = async (req, res, next) => {
       include: {
         assignedTo: { select: { id: true, name: true, email: true, role: true } },
         createdBy: { select: { id: true, name: true, email: true } },
-        school: { select: { id: true, name: true, type: true } },
+        school: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            address: true,
+            zone: {
+              select: {
+                id: true,
+                name: true,
+                district: {
+                  select: {
+                    id: true,
+                    name: true,
+                    state: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
         deal: { select: { id: true, title: true, value: true } },
         contact: { select: { id: true, firstName: true, lastName: true, company: true } },
         comments: {
@@ -144,7 +194,7 @@ exports.getTasks = async (req, res, next) => {
   }
 };
 
-// ─── CREATE NEW TASK ────────────────────────────────────────────────────────
+// ─── CREATE NEW TASK (SINGLE OR BATCH SCHOOL-WISE) ──────────────────────────
 exports.createTask = async (req, res, next) => {
   try {
     const {
@@ -156,6 +206,7 @@ exports.createTask = async (req, res, next) => {
       dueDate,
       assignedToId,
       schoolId,
+      schoolIds,
       dealId,
       contactId,
     } = req.body;
@@ -165,6 +216,78 @@ exports.createTask = async (req, res, next) => {
       throw new Error('Task title is required');
     }
 
+    // Support batch school-wise task creation
+    if (Array.isArray(schoolIds) && schoolIds.length > 0) {
+      const schools = await prisma.school.findMany({
+        where: { id: { in: schoolIds } },
+        include: {
+          zone: {
+            include: {
+              district: true,
+            },
+          },
+        },
+      });
+
+      const createdTasks = [];
+      for (const s of schools) {
+        const t = await prisma.task.create({
+          data: {
+            title: `${title.trim()} - ${s.name}`,
+            description: description ? description.trim() : null,
+            priority: priority || 'MEDIUM',
+            status: status || 'TODO',
+            category: category || 'GENERAL',
+            dueDate: dueDate ? new Date(dueDate) : null,
+            assignedToId: assignedToId || req.user.id,
+            createdById: req.user.id,
+            schoolId: s.id,
+            dealId: dealId || null,
+            contactId: contactId || null,
+          },
+          include: {
+            assignedTo: { select: { id: true, name: true, email: true } },
+            createdBy: { select: { id: true, name: true, email: true } },
+            school: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                zone: {
+                  select: {
+                    id: true,
+                    name: true,
+                    district: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+            deal: { select: { id: true, title: true } },
+            contact: { select: { id: true, firstName: true, lastName: true } },
+          },
+        });
+        createdTasks.push(t);
+      }
+
+      await logActivity(
+        req,
+        'CREATE',
+        'TASK',
+        `Created ${createdTasks.length} school-wise tasks for "${title}"`,
+        null,
+        { count: createdTasks.length }
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: `Successfully created ${createdTasks.length} school-wise tasks`,
+        count: createdTasks.length,
+        data: createdTasks[0],
+        allTasks: createdTasks,
+      });
+    }
+
+    // Standard single task creation
     const task = await prisma.task.create({
       data: {
         title: title.trim(),
@@ -182,13 +305,33 @@ exports.createTask = async (req, res, next) => {
       include: {
         assignedTo: { select: { id: true, name: true, email: true } },
         createdBy: { select: { id: true, name: true, email: true } },
-        school: { select: { id: true, name: true } },
+        school: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            zone: {
+              select: {
+                id: true,
+                name: true,
+                district: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
         deal: { select: { id: true, title: true } },
         contact: { select: { id: true, firstName: true, lastName: true } },
       },
     });
 
-    await logActivity(req, 'CREATE', 'TASK', `Created task: "${task.title}" assigned to ${task.assignedTo?.name || 'Unassigned'}`, null, task);
+    await logActivity(
+      req,
+      'CREATE',
+      'TASK',
+      `Created task: "${task.title}" assigned to ${task.assignedTo?.name || 'Unassigned'}`,
+      null,
+      task
+    );
 
     res.status(201).json({ success: true, message: 'Task created successfully', data: task });
   } catch (err) {
@@ -360,3 +503,119 @@ exports.markTaskAsRead = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── SUBMIT SCHOOL-WISE TASK REPORT ─────────────────────────────────────────
+exports.submitTaskReport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      status = 'COMPLETED',
+      teacherMet,
+      teacherPhone,
+      specimenDetails,
+      visitOutcome,
+      notes,
+      followUpDate,
+    } = req.body;
+
+    const task = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        school: {
+          include: {
+            zone: { include: { district: true } },
+          },
+        },
+        assignedTo: true,
+      },
+    });
+
+    if (!task) {
+      res.status(404);
+      throw new Error('Task not found');
+    }
+
+    const schoolDisplay = task.school
+      ? `${task.school.name} (${task.school.zone?.name || ''}, ${task.school.zone?.district?.name || ''})`
+      : 'General / No School Linked';
+
+    const reportContent = [
+      `[SCHOOL SUBMISSION REPORT]`,
+      `School: ${schoolDisplay}`,
+      teacherMet ? `Teacher / Contact Met: ${teacherMet}${teacherPhone ? ` (Ph: ${teacherPhone})` : ''}` : null,
+      visitOutcome ? `Visit Outcome: ${visitOutcome}` : null,
+      specimenDetails ? `Specimen Distributed / Details: ${specimenDetails}` : null,
+      notes ? `Notes / Observations: ${notes}` : null,
+      followUpDate ? `Next Follow-up Date: ${followUpDate}` : null,
+      `Submitted By: ${req.user?.name || req.user?.email || 'User'} on ${new Date().toLocaleString()}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    // Add structured comment entry
+    const comment = await prisma.taskComment.create({
+      data: {
+        taskId: id,
+        userId: req.user.id,
+        content: reportContent,
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    // Update status to COMPLETED (or specified) and set completedAt
+    const updatedTask = await prisma.task.update({
+      where: { id },
+      data: {
+        status,
+        completedAt: status === 'COMPLETED' ? new Date() : null,
+      },
+      include: {
+        assignedTo: { select: { id: true, name: true, email: true, role: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        school: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            zone: {
+              select: {
+                id: true,
+                name: true,
+                district: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        deal: { select: { id: true, title: true, value: true } },
+        contact: { select: { id: true, firstName: true, lastName: true, company: true } },
+        comments: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    await logActivity(
+      req,
+      'SUBMIT',
+      'TASK',
+      `Submitted school report for task "${updatedTask.title}" (${task.school?.name || 'General'})`,
+      task,
+      updatedTask
+    );
+
+    res.json({
+      success: true,
+      message: 'School task report submitted successfully',
+      data: updatedTask,
+      submissionComment: comment,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

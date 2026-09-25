@@ -15,5 +15,6 @@ router.patch('/:id/status', checkDynamicPermission('/tasks', 'canEdit'), tasksCo
 router.patch('/:id/read', tasksController.markTaskAsRead);
 router.delete('/:id', checkDynamicPermission('/tasks', 'canDelete'), tasksController.deleteTask);
 router.post('/:id/comments', checkDynamicPermission('/tasks', 'canView'), tasksController.addTaskComment);
+router.post('/:id/submit', checkDynamicPermission('/tasks', 'canEdit'), tasksController.submitTaskReport);
 
 module.exports = router;
