@@ -15,6 +15,7 @@ const specimenRoutes = require('../features/specimen/specimen.routes');
 const masterDataRoutes = require('../features/masterdata/masterdata.routes');
 const stockRoutes = require('../features/stock/stock.routes');
 const taskRoutes = require('../features/tasks/tasks.routes');
+const visitRoutes = require('../features/visits/visits.routes');
 
 router.use('/auth', authRoutes);
 router.use('/contacts', contactRoutes);
@@ -30,6 +31,7 @@ router.use('/specimen', specimenRoutes);
 router.use('/masterdata', masterDataRoutes);
 router.use('/stock', stockRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/visits', visitRoutes);
 
 
 
