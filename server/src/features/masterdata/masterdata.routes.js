@@ -40,6 +40,7 @@ router.put('/schools/:id', checkDynamicPermission('/master-data', 'canEdit'), ma
 router.delete('/schools/:id', checkDynamicPermission('/master-data', 'canDelete'), masterDataController.deleteSchool);
 
 // Teachers
+router.get('/teachers/filters', masterDataController.getTeacherFilters);
 router.get('/teachers', masterDataController.getTeachers);
 router.post('/teachers', checkDynamicPermission('/master-data', 'canCreate'), masterDataController.createTeacher);
 router.put('/teachers/:id', checkDynamicPermission('/master-data', 'canEdit'), masterDataController.updateTeacher);

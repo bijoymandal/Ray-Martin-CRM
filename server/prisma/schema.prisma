@@ -42,6 +42,7 @@ model User {
   assignedTasks   Task[]           @relation("TaskAssignedTo")
   createdTasks    Task[]           @relation("TaskCreatedBy")
   taskComments    TaskComment[]
+  schoolVisits    SchoolVisit[]    @relation("UserVisits")
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -272,23 +273,37 @@ model School {
   board     Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
   teachers  Teacher[]
   tasks     Task[]
+  visits    SchoolVisit[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
 model Teacher {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  phone       String
-  email       String?
-  subject     String?
-  designation String?
-  schoolId    String   @db.ObjectId
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  phone        String
+  email        String?
+  subject      String?
+  subjects     String[]  @default([])
+  classes      String[]  @default([])
+  categoryType String    @default("School") // "School" (School Teacher) | "Private Tutor" (Private Teacher)
+  schoolType   String?   // "HS School" | "Primary School" | "Kg/Nursery School" | "CBSE SCHOOL"
+  schoolName   String?
+  district     String?
+  zone         String?
+  board        String?
+  designation  String?
+  schoolId     String?   @db.ObjectId
+  school       School?   @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  @@unique([schoolId, phone])
+  @@index([categoryType])
+  @@index([classes])
+  @@index([schoolType])
+  @@index([district])
+  @@index([phone])
+  @@index([schoolId])
 }
 
 // ─── Specimen Book Distribution Tracker ───────────────────────────────────────
@@ -398,5 +413,33 @@ model TaskComment {
   createdAt DateTime @default(now())
 }
 
+// ─── School Visits & Field Outreach ─────────────────────────────────────────
+enum VisitStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
 
-
+model SchoolVisit {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId       String?      @db.ObjectId
+  school         School?      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  schoolName     String
+  contactPerson  String?
+  contactPhone   String?
+  contactEmail   String?
+  location       String?
+  visitDate      DateTime
+  purpose        String       // SPECIMEN_DISTRIBUTION, CURRICULUM_REVIEW, ANNUAL_ADOPTION, PAYMENT_COLLECTION, NEW_PROMOTION, GENERAL
+  notes          String?
+  status         VisitStatus  @default(SCHEDULED)
+  outcome        String?      // POSITIVE, ORDER_EXPECTED, SPECIMEN_DELIVERED, FOLLOW_UP_REQUIRED, DECISION_DEFERRED, NOT_INTERESTED
+  specimensGiven String?
+  followUpDate   DateTime?
+  photoUrl       String?
+  visitorId      String?      @db.ObjectId
+  visitor        User?        @relation("UserVisits", fields: [visitorId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}

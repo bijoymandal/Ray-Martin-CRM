@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
 import KpiCard from '../components/KpiCard';
+import { FlipkartStatCardSkeleton, FlipkartTableSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   getMasterDataSummaryAPI,
@@ -13,7 +14,7 @@ import {
   getZonesAPI, createZoneAPI, updateZoneAPI, deleteZoneAPI,
   getSchoolBoardsAPI, createSchoolBoardAPI, updateSchoolBoardAPI, deleteSchoolBoardAPI,
   getSchoolsAPI, createSchoolAPI, updateSchoolAPI, deleteSchoolAPI,
-  getTeachersAPI, createTeacherAPI, updateTeacherAPI, deleteTeacherAPI,
+  getTeachersAPI, createTeacherAPI, updateTeacherAPI, deleteTeacherAPI, getTeacherFiltersAPI,
 } from '../services/api';
 import {
   MapPin,
@@ -36,6 +37,9 @@ import {
   Mail,
   Filter,
   RotateCcw,
+  GraduationCap,
+  Briefcase,
+  Check,
 } from 'lucide-react';
 
 const MasterData = () => {
@@ -76,6 +80,11 @@ const MasterData = () => {
   const [selectedBoardId, setSelectedBoardId] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [schoolTypeFilter, setSchoolTypeFilter] = useState('');
+
+  // Teacher specific filters (Category type, Class, School Type)
+  const [teacherCategoryType, setTeacherCategoryType] = useState('ALL'); // 'ALL' | 'School' | 'Private Tutor'
+  const [teacherClassFilter, setTeacherClassFilter] = useState('ALL'); // 'ALL' | '5' .. '12'
+  const [teacherSchoolTypeFilter, setTeacherSchoolTypeFilter] = useState('ALL');
 
   const handleTabChange = (newTab) => {
     setPage(1);
@@ -120,6 +129,22 @@ const MasterData = () => {
     setPage(1);
   };
 
+  const handleTeacherCategoryChange = (cat) => {
+    setTeacherCategoryType(cat);
+    setPage(1);
+  };
+
+  const handleTeacherClassChange = (cls) => {
+    setTeacherClassFilter(cls);
+    setPage(1);
+  };
+
+  const handleTeacherSchoolTypeChange = (st) => {
+    setTeacherSchoolTypeFilter(st);
+    setPage(1);
+  };
+
+
   // Toast / error state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -132,7 +157,7 @@ const MasterData = () => {
   // ─── TANSTACK QUERIES ────────────────────────────────────────────────────────
 
   // 1. KPI Summary Counts
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, isLoading: isSummaryLoading } = useQuery({
     queryKey: ['masterdata-summary'],
     queryFn: async () => {
       const res = await getMasterDataSummaryAPI();
@@ -230,6 +255,16 @@ const MasterData = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: teacherFiltersData } = useQuery({
+    queryKey: ['teacher-filters'],
+    queryFn: async () => {
+      const res = await getTeacherFiltersAPI();
+      return res?.data || null;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'teachers',
+  });
+
   // 3. Main Active Tab Paginated Query
   const activeTabParams = useMemo(() => {
     const p = {
@@ -249,15 +284,26 @@ const MasterData = () => {
       if (selectedBoardId) p.boardId = selectedBoardId;
       if (schoolTypeFilter) p.type = schoolTypeFilter;
     } else if (activeTab === 'teachers') {
+      if (teacherCategoryType && teacherCategoryType !== 'ALL') p.categoryType = teacherCategoryType;
+      if (teacherClassFilter && teacherClassFilter !== 'ALL') p.class = teacherClassFilter;
+      if (teacherSchoolTypeFilter && teacherSchoolTypeFilter !== 'ALL') p.schoolType = teacherSchoolTypeFilter;
       if (selectedSchoolId) p.schoolId = selectedSchoolId;
       else {
-        if (selectedZoneId) p.zoneId = selectedZoneId;
-        else if (selectedDistrictId) p.districtId = selectedDistrictId;
+        if (selectedZoneId) {
+          p.zoneId = selectedZoneId;
+          const zMatch = allZones.find(z => z.id === selectedZoneId) || refZones.find(z => z.id === selectedZoneId);
+          if (zMatch?.name) p.zone = zMatch.name;
+        }
+        if (selectedDistrictId) {
+          p.districtId = selectedDistrictId;
+          const dMatch = allDistricts.find(d => d.id === selectedDistrictId);
+          if (dMatch?.name) p.district = dMatch.name;
+        }
         if (selectedBoardId) p.boardId = selectedBoardId;
       }
     }
     return p;
-  }, [activeTab, page, limit, debouncedSearch, selectedStateId, selectedDistrictId, selectedZoneId, selectedBoardId, selectedSchoolId, schoolTypeFilter]);
+  }, [activeTab, page, limit, debouncedSearch, selectedStateId, selectedDistrictId, selectedZoneId, selectedBoardId, selectedSchoolId, schoolTypeFilter, teacherCategoryType, teacherClassFilter, teacherSchoolTypeFilter, allZones, refZones, allDistricts]);
 
   const {
     data: tabResult,
@@ -356,24 +402,53 @@ const MasterData = () => {
   // Modal Handlers
   const openCreateModal = () => {
     setEditItem(null);
-    setFormData({});
+    if (activeTab === 'teachers') {
+      setFormData({
+        categoryType: teacherCategoryType !== 'ALL' ? teacherCategoryType : 'School',
+        classes: teacherClassFilter !== 'ALL' ? [teacherClassFilter] : ['10'],
+        schoolType: teacherSchoolTypeFilter !== 'ALL' ? teacherSchoolTypeFilter : 'HS School',
+      });
+    } else {
+      setFormData({});
+    }
     setModalMode('create');
   };
 
   const openEditModal = (item) => {
     setEditItem(item);
-    setFormData({ ...item });
+    if (activeTab === 'teachers') {
+      setFormData({
+        ...item,
+        classes: Array.isArray(item.classes) ? item.classes : [],
+        subjects: Array.isArray(item.subjects) ? item.subjects : (item.subject ? [item.subject] : []),
+        categoryType: item.categoryType || 'School',
+        schoolName: item.schoolName || item.school?.name || '',
+        schoolType: item.schoolType || 'HS School',
+        district: item.district || item.school?.zone?.district?.name || '',
+        zone: item.zone || item.school?.zone?.name || '',
+      });
+    } else {
+      setFormData({ ...item });
+    }
     setModalMode('edit');
   };
 
   const handleSave = (e) => {
     e.preventDefault();
     setError('');
+
+    let payload = { ...formData };
+    if (activeTab === 'teachers') {
+      if (typeof payload.subject === 'string' && (!payload.subjects || payload.subjects.length === 0)) {
+        payload.subjects = payload.subject.split(',').map((s) => s.trim()).filter(Boolean);
+      }
+    }
+
     saveMutation.mutate({
       mode: modalMode,
       currentTab: activeTab,
       editObj: editItem,
-      formValues: formData,
+      formValues: payload,
     });
   };
 
@@ -394,6 +469,9 @@ const MasterData = () => {
     setSelectedBoardId('');
     setSelectedSchoolId('');
     setSchoolTypeFilter('');
+    setTeacherCategoryType('ALL');
+    setTeacherClassFilter('ALL');
+    setTeacherSchoolTypeFilter('ALL');
     setSearchInput('');
     setDebouncedSearch('');
     setPage(1);
@@ -406,6 +484,9 @@ const MasterData = () => {
     selectedBoardId ||
     selectedSchoolId ||
     schoolTypeFilter ||
+    (teacherCategoryType && teacherCategoryType !== 'ALL') ||
+    (teacherClassFilter && teacherClassFilter !== 'ALL') ||
+    (teacherSchoolTypeFilter && teacherSchoolTypeFilter !== 'ALL') ||
     searchInput.trim()
   );
 
@@ -465,10 +546,13 @@ const MasterData = () => {
           )}
 
           {/* Overview Summary KPI Widgets */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {isSummaryLoading ? (
+            <FlipkartStatCardSkeleton count={6} colsClass="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <KpiCard
               title="States"
-              value={summary.statesCount}
+              value={summary?.statesCount ?? 0}
               icon={<MapPin size={14} />}
               accentColor="indigo"
               onClick={() => handleTabChange('states')}
@@ -477,7 +561,7 @@ const MasterData = () => {
 
             <KpiCard
               title="Districts"
-              value={summary.districtsCount}
+              value={summary?.districtsCount ?? 0}
               icon={<Building size={14} />}
               accentColor="purple"
               onClick={() => handleTabChange('districts')}
@@ -486,7 +570,7 @@ const MasterData = () => {
 
             <KpiCard
               title="Zones"
-              value={summary.zonesCount}
+              value={summary?.zonesCount ?? 0}
               icon={<Navigation size={14} />}
               accentColor="cyan"
               onClick={() => handleTabChange('zones')}
@@ -495,7 +579,7 @@ const MasterData = () => {
 
             <KpiCard
               title="School Boards"
-              value={summary.boardsCount}
+              value={summary?.boardsCount ?? 0}
               icon={<BookOpen size={14} />}
               accentColor="amber"
               onClick={() => handleTabChange('boards')}
@@ -504,7 +588,7 @@ const MasterData = () => {
 
             <KpiCard
               title="Schools"
-              value={summary.schoolsCount}
+              value={summary?.schoolsCount ?? 0}
               icon={<SchoolIcon size={14} />}
               accentColor="emerald"
               onClick={() => handleTabChange('schools')}
@@ -513,13 +597,14 @@ const MasterData = () => {
 
             <KpiCard
               title="Teachers"
-              value={summary.teachersCount}
+              value={summary?.teachersCount ?? 0}
               icon={<Users size={14} />}
               accentColor="rose"
               onClick={() => handleTabChange('teachers')}
               isActive={activeTab === 'teachers'}
             />
           </div>
+          )}
 
           {/* Hierarchical Breadcrumb Navigation */}
           <div className="glass-card p-3 flex items-center gap-2 text-xs font-bold overflow-x-auto text-slate-600 dark:text-slate-300">
@@ -660,6 +745,54 @@ const MasterData = () => {
                 {activeTab === 'teachers' && (
                   <>
                     <SearchSelect
+                      placeholder="Category Type..."
+                      searchPlaceholder="Search type..."
+                      options={[
+                        { value: 'ALL', label: 'All Categories' },
+                        { value: 'School', label: '🏫 School Teachers' },
+                        { value: 'Private Tutor', label: '👨‍🏫 Private Tutors / Teachers' },
+                      ]}
+                      value={teacherCategoryType}
+                      onChange={handleTeacherCategoryChange}
+                      accentColor="rose"
+                    />
+
+                    <SearchSelect
+                      placeholder="Class..."
+                      searchPlaceholder="Select class..."
+                      options={[
+                        { value: 'ALL', label: 'All Classes' },
+                        { value: '12', label: 'Class 12' },
+                        { value: '11', label: 'Class 11' },
+                        { value: '10', label: 'Class 10' },
+                        { value: '9', label: 'Class 9' },
+                        { value: '8', label: 'Class 8' },
+                        { value: '7', label: 'Class 7' },
+                        { value: '6', label: 'Class 6' },
+                        { value: '5', label: 'Class 5' },
+                      ]}
+                      value={teacherClassFilter}
+                      onChange={handleTeacherClassChange}
+                      accentColor="indigo"
+                    />
+
+                    <SearchSelect
+                      placeholder="School Type..."
+                      searchPlaceholder="Select school type..."
+                      options={[
+                        { value: 'ALL', label: 'All School Types' },
+                        { value: 'HS School', label: 'HS School' },
+                        { value: 'Primary School', label: 'Primary School' },
+                        { value: 'Kg/Nursery School', label: 'Kg/Nursery School' },
+                        { value: 'CBSE SCHOOL', label: 'CBSE SCHOOL' },
+                        { value: 'Private Coaching', label: 'Private Coaching' },
+                      ]}
+                      value={teacherSchoolTypeFilter}
+                      onChange={handleTeacherSchoolTypeChange}
+                      accentColor="emerald"
+                    />
+
+                    <SearchSelect
                       placeholder="Filter District..."
                       searchPlaceholder="Search districts..."
                       options={[{ value: '', label: 'All Districts' }, ...allDistricts.map(d => ({ value: d.id, label: `${d.name} (${d.state?.name || ''})` }))]}
@@ -723,12 +856,84 @@ const MasterData = () => {
               </div>
             </div>
 
+            {/* Quick Category & Class Filter Bar for Teachers */}
+            {activeTab === 'teachers' && (
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-slate-100/70 dark:bg-white/3 rounded-2xl border border-slate-200/60 dark:border-white/5">
+                {/* Category Type Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    onClick={() => handleTeacherCategoryChange('ALL')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      teacherCategoryType === 'ALL'
+                        ? 'bg-gradient-to-r from-rose-500 to-indigo-600 text-white shadow-md shadow-rose-500/20'
+                        : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <Users size={13} />
+                    <span>All Teachers</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-black">
+                      {tabResult?.summary?.totalMatching !== undefined ? tabResult.summary.totalMatching : (teacherFiltersData?.totalCount ?? total)}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleTeacherCategoryChange('School')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      teacherCategoryType === 'School'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                        : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <SchoolIcon size={13} />
+                    <span>School Teachers</span>
+                    {(tabResult?.summary?.schoolTeachersCount !== undefined || teacherFiltersData?.schoolCount !== undefined) && (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-100 font-black">
+                        {tabResult?.summary?.schoolTeachersCount !== undefined ? tabResult.summary.schoolTeachersCount : teacherFiltersData?.schoolCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleTeacherCategoryChange('Private Tutor')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      teacherCategoryType === 'Private Tutor'
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                        : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <GraduationCap size={13} />
+                    <span>Private Tutors / Teachers</span>
+                    {(tabResult?.summary?.privateTeachersCount !== undefined || teacherFiltersData?.privateCount !== undefined) && (
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-100 font-black">
+                        {tabResult?.summary?.privateTeachersCount !== undefined ? tabResult.summary.privateTeachersCount : teacherFiltersData?.privateCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Class Quick Filter Chips */}
+                <div className="flex items-center gap-1 overflow-x-auto text-[11px] font-bold">
+                  <span className="text-slate-400 uppercase tracking-wider text-[10px] mr-1 shrink-0">Class:</span>
+                  {['ALL', '5', '6', '7', '8', '9', '10', '11', '12'].map((cls) => (
+                    <button
+                      key={cls}
+                      onClick={() => handleTeacherClassChange(cls)}
+                      className={`px-2 py-1 rounded-lg transition-colors cursor-pointer shrink-0 ${
+                        teacherClassFilter === cls
+                          ? 'bg-rose-500 text-white font-black shadow-sm'
+                          : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      {cls === 'ALL' ? 'All' : `Cls ${cls}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* List Table */}
             {isTabLoading && items.length === 0 ? (
-              <div className="py-16 text-center text-xs font-semibold text-slate-400 flex flex-col items-center justify-center gap-3">
-                <RefreshCw size={24} className="animate-spin text-indigo-500" />
-                <span>Loading {activeTab} records with TanStack Query...</span>
-              </div>
+              <FlipkartTableSkeleton rows={8} cols={5} hasThumbnail={false} />
             ) : items.length === 0 ? (
               <div className="py-16 text-center text-slate-400 text-xs">
                 <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-3 text-slate-400">
@@ -807,10 +1012,12 @@ const MasterData = () => {
                       )}
                       {activeTab === 'teachers' && (
                         <>
-                          <th className="py-3 px-3">Teacher Name</th>
-                          <th className="py-3 px-3">Phone Number</th>
-                          <th className="py-3 px-3">School & Location</th>
-                          <th className="py-3 px-3">Subject</th>
+                          <th className="py-3 px-3">Teacher & Type</th>
+                          <th className="py-3 px-3">Classes</th>
+                          <th className="py-3 px-3">Subjects</th>
+                          <th className="py-3 px-3">School / Coaching</th>
+                          <th className="py-3 px-3">District & Zone</th>
+                          <th className="py-3 px-3">Contact</th>
                           <th className="py-3 px-3 text-right">Actions</th>
                         </>
                       )}
@@ -1013,57 +1220,174 @@ const MasterData = () => {
                       </tr>
                     ))}
 
-                    {activeTab === 'teachers' && items.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
-                        <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                          <Users size={14} className="text-rose-500 shrink-0" />
-                          <span>{item.name}</span>
-                        </td>
-                        <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-200">
-                          <div className="flex items-center gap-1.5">
-                            <Phone size={12} className="text-slate-400" />
-                            <span>{item.phone}</span>
-                          </div>
-                          {item.email && (
-                            <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1 mt-0.5">
-                              <Mail size={10} />
-                              <span>{item.email}</span>
+                    {activeTab === 'teachers' && items.map((item) => {
+                      const isPrivateTutor = item.categoryType === 'Private Tutor' || item.categoryType === 'PRIVATE_TEACHER';
+                      const teacherClasses = Array.isArray(item.classes) ? item.classes : [];
+                      const teacherSubjects = Array.isArray(item.subjects) && item.subjects.length > 0 
+                        ? item.subjects 
+                        : (item.subject ? [item.subject] : []);
+                      const schoolDisplay = item.schoolName || item.school?.name || (isPrivateTutor ? 'Private Tuition / Independent' : '—');
+                      const districtDisplay = item.district || item.school?.zone?.district?.name || '—';
+                      const zoneDisplay = item.zone || item.school?.zone?.name;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-white/2 transition-colors">
+                          {/* Teacher Name & Category */}
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                              {isPrivateTutor ? (
+                                <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                  <GraduationCap size={15} />
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                  <Users size={15} />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <span className="block font-bold text-slate-900 dark:text-white truncate max-w-xs">{item.name}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  {isPrivateTutor ? (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold text-[10px]">
+                                      Private Tutor
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold text-[10px]">
+                                      School Teacher
+                                    </span>
+                                  )}
+                                  {item.designation && item.designation !== 'Subject Teacher' && item.designation !== 'Private Tutor' && (
+                                    <span className="text-[10px] text-slate-400 font-medium truncate max-w-[120px]">
+                                      • {item.designation}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">{item.school?.name || '—'}</div>
-                          <div className="text-[10px] text-slate-400">
-                            {item.school?.zone?.name} · {item.school?.board?.name} ({item.school?.type})
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px]">
-                            {item.subject || 'General'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right space-x-1">
-                          {canEdit && (
-                            <button
-                              onClick={() => openEditModal(item)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-                              title="Edit Teacher"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-                              title="Delete Teacher"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+
+                          {/* Classes */}
+                          <td className="py-3 px-3">
+                            {teacherClasses.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-w-[140px]">
+                                {teacherClasses.slice(0, 4).map((c) => (
+                                  <span
+                                    key={c}
+                                    className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-black text-[10px]"
+                                  >
+                                    Cls {c}
+                                  </span>
+                                ))}
+                                {teacherClasses.length > 4 && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 font-bold text-[10px]"
+                                    title={teacherClasses.join(', ')}
+                                  >
+                                    +{teacherClasses.length - 4}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Subjects */}
+                          <td className="py-3 px-3">
+                            {teacherSubjects.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 max-w-[160px]">
+                                {teacherSubjects.slice(0, 2).map((s, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300 font-bold text-[10px] truncate max-w-[150px]"
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                                {teacherSubjects.length > 2 && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300 font-bold text-[10px]"
+                                    title={teacherSubjects.join(', ')}
+                                  >
+                                    +{teacherSubjects.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* School / Coaching & Type */}
+                          <td className="py-3 px-3">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs truncate max-w-xs" title={schoolDisplay}>
+                              {schoolDisplay}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {item.schoolType && (
+                                <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 font-bold text-[9px] uppercase tracking-wider">
+                                  {item.schoolType}
+                                </span>
+                              )}
+                              {item.board && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                  {item.board}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* District & Zone */}
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center gap-1">
+                              <MapPin size={11} className="text-purple-500 shrink-0" />
+                              <span className="truncate max-w-[130px]">{districtDisplay}</span>
+                            </div>
+                            {zoneDisplay && (
+                              <div className="text-[10px] text-slate-400 pl-4 truncate max-w-[130px]">
+                                {zoneDisplay}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Contact Info */}
+                          <td className="py-3 px-3 font-bold text-slate-700 dark:text-slate-200">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <Phone size={12} className="text-emerald-500 shrink-0" />
+                              <span className="font-mono tracking-tight">{item.phone}</span>
+                            </div>
+                            {item.email && (
+                              <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1 mt-0.5 truncate max-w-[140px]">
+                                <Mail size={10} className="shrink-0" />
+                                <span className="truncate">{item.email}</span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-3 text-right space-x-1">
+                            {canEdit && (
+                              <button
+                                onClick={() => openEditModal(item)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                title="Edit Teacher"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                title="Delete Teacher"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1148,9 +1472,9 @@ const MasterData = () => {
 
       {/* Create / Edit Modal */}
       {modalMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-3">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col my-auto">
+            <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-3 shrink-0 mb-2">
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
                 {modalMode === 'create' ? 'Add' : 'Edit'} {activeTab.slice(0, -1).toUpperCase()}
               </h3>
@@ -1159,7 +1483,7 @@ const MasterData = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3 text-xs">
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 flex flex-col justify-between space-y-3 text-xs">
               {/* Form Fields according to activeTab */}
               {activeTab === 'states' && (
                 <>
@@ -1325,57 +1649,175 @@ const MasterData = () => {
 
               {activeTab === 'teachers' && (
                 <>
-                  <SearchSelect
-                    label="Select School"
-                    required
-                    placeholder="Choose School..."
-                    searchPlaceholder="Search schools..."
-                    options={allSchools.map((s) => ({ value: s.id, label: `${s.name} (${s.type})` }))}
-                    value={formData.schoolId || ''}
-                    onChange={(v) => setFormData({ ...formData, schoolId: v })}
-                    accentColor="rose"
-                  />
+                  {/* Category Type Selection */}
                   <div>
-                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teacher Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name || ''}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Prof. Ananya Sen"
-                      required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
-                    />
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teacher Category Type *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, categoryType: 'School' })}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                          (formData.categoryType || 'School') === 'School'
+                            ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                            : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <SchoolIcon size={14} />
+                        <span>School Teacher</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, categoryType: 'Private Tutor' })}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                          formData.categoryType === 'Private Tutor'
+                            ? 'bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-400 shadow-sm'
+                            : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <GraduationCap size={14} />
+                        <span>Private Tutor / Teacher</span>
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teacher Phone *</label>
-                    <input
-                      type="text"
-                      value={formData.phone || ''}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="9876543210"
-                      required
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none font-bold"
-                    />
+
+                  {/* Teacher Name & Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teacher Name *</label>
+                      <input
+                        type="text"
+                        value={formData.name || ''}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="e.g. Subir Mukherjee"
+                        required
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Phone Number *</label>
+                      <input
+                        type="text"
+                        value={formData.phone || ''}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="e.g. 9830123456"
+                        required
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none font-bold font-mono"
+                      />
+                    </div>
                   </div>
+
+                  {/* Classes Multi-select Chips */}
                   <div>
-                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Email</label>
-                    <input
-                      type="email"
-                      value={formData.email || ''}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="ananya.sen@example.com"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
-                    />
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Classes Taught (Class-wise)</label>
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl">
+                      {['5', '6', '7', '8', '9', '10', '11', '12'].map((cls) => {
+                        const isSelected = (formData.classes || []).includes(cls);
+                        return (
+                          <button
+                            key={cls}
+                            type="button"
+                            onClick={() => {
+                              const cur = formData.classes || [];
+                              const updated = isSelected
+                                ? cur.filter((c) => c !== cls)
+                                : [...cur, cls].sort((a, b) => Number(a) - Number(b));
+                              setFormData({ ...formData, classes: updated });
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-rose-500 text-white shadow-sm'
+                                : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <span>Class {cls}</span>
+                            {isSelected && <Check size={11} />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div>
-                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Subject Taught</label>
-                    <input
-                      type="text"
-                      value={formData.subject || ''}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      placeholder="e.g. Mathematics"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
-                    />
+
+                  {/* Subject & Email */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Subject(s)</label>
+                      <input
+                        type="text"
+                        value={formData.subject || (Array.isArray(formData.subjects) ? formData.subjects.join(', ') : '')}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const subs = val.split(',').map((s) => s.trim()).filter(Boolean);
+                          setFormData({ ...formData, subject: val, subjects: subs });
+                        }}
+                        placeholder="e.g. Mathematics, Bengali"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Email (Optional)</label>
+                      <input
+                        type="email"
+                        value={formData.email || ''}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="teacher@example.com"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* School / Coaching Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                        {(formData.categoryType || 'School') === 'Private Tutor' ? 'Coaching / Tuition Name' : 'School Name'}
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.schoolName || ''}
+                        onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+                        placeholder={(formData.categoryType || 'School') === 'Private Tutor' ? 'e.g. Apex Tutorials / Home Tuition' : 'e.g. Behala High School'}
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Institution Type</label>
+                      <select
+                        value={formData.schoolType || 'HS School'}
+                        onChange={(e) => setFormData({ ...formData, schoolType: e.target.value })}
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none font-bold text-slate-700 dark:text-slate-200 text-xs cursor-pointer"
+                      >
+                        <option value="HS School">HS School (Higher Secondary)</option>
+                        <option value="Primary School">Primary School</option>
+                        <option value="Kg/Nursery School">Kg/Nursery School</option>
+                        <option value="CBSE SCHOOL">CBSE SCHOOL</option>
+                        <option value="Private Coaching">Private Coaching</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* District & Zone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">District</label>
+                      <input
+                        type="text"
+                        value={formData.district || ''}
+                        onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                        placeholder="e.g. KOLKATA, NORTH 24 PARGANAS"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Zone / Area</label>
+                      <input
+                        type="text"
+                        value={formData.zone || ''}
+                        onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
+                        placeholder="e.g. SOUTH KOLKATA, BEHALA"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </>
               )}

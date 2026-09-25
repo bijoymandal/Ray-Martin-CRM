@@ -592,92 +592,214 @@ exports.deleteSchool = async (req, res, next) => {
 // ─── TEACHERS ───────────────────────────────────────────────────────────────
 exports.getTeachers = async (req, res, next) => {
   try {
-    const { schoolId, districtId, zoneId, boardId, search, page, limit } = req.query;
+    const {
+      schoolId,
+      districtId,
+      district,
+      zoneId,
+      zone,
+      boardId,
+      categoryType, // 'School' | 'Private Tutor' | 'ALL'
+      schoolType,
+      class: classFilter, // '5', '6', '7', '8', '9', '10', '11', '12'
+      subject,
+      search,
+      page,
+      limit,
+    } = req.query;
+
     const where = {};
+
+    // Category Type filter (School Teacher vs Private Teacher)
+    if (categoryType && categoryType !== 'ALL' && categoryType !== 'all') {
+      if (categoryType === 'PRIVATE_TEACHER' || categoryType.toLowerCase().includes('private')) {
+        where.categoryType = 'Private Tutor';
+      } else if (categoryType === 'SCHOOL_TEACHER' || categoryType.toLowerCase().includes('school')) {
+        where.categoryType = 'School';
+      } else {
+        where.categoryType = categoryType;
+      }
+    }
+
+    // Class-wise filter (belongs to class)
+    if (classFilter && classFilter !== 'ALL' && classFilter !== 'all') {
+      where.classes = { has: String(classFilter).trim() };
+    }
+
+    // School Type filter
+    if (schoolType && schoolType !== 'ALL' && schoolType !== 'all') {
+      where.schoolType = { equals: schoolType, mode: 'insensitive' };
+    }
+
+    // District filter (handles both string district name and districtId)
+    let effectiveDistrict = district && district !== 'ALL' && district !== 'all' ? district : null;
+    if (!effectiveDistrict && districtId) {
+      const dRec = await prisma.district.findUnique({ where: { id: districtId }, select: { name: true } });
+      if (dRec) effectiveDistrict = dRec.name;
+    }
+
+    if (effectiveDistrict) {
+      if (districtId) {
+        const districtCondition = [
+          { district: { equals: effectiveDistrict, mode: 'insensitive' } },
+          { school: { zone: { districtId } } },
+        ];
+        if (where.OR) {
+          where.AND = [{ OR: where.OR }, { OR: districtCondition }];
+          delete where.OR;
+        } else {
+          where.OR = districtCondition;
+        }
+      } else {
+        where.district = { equals: effectiveDistrict, mode: 'insensitive' };
+      }
+    }
+
+    // Zone filter (handles both string zone name and zoneId)
+    let effectiveZone = zone && zone !== 'ALL' && zone !== 'all' ? zone : null;
+    if (!effectiveZone && zoneId) {
+      const zRec = await prisma.zone.findUnique({ where: { id: zoneId }, select: { name: true } });
+      if (zRec) effectiveZone = zRec.name;
+    }
+
+    if (effectiveZone) {
+      if (zoneId) {
+        const zoneCondition = [
+          { zone: { equals: effectiveZone, mode: 'insensitive' } },
+          { school: { zoneId } },
+        ];
+        if (where.OR) {
+          where.AND = [{ OR: where.OR }, { OR: zoneCondition }];
+          delete where.OR;
+        } else {
+          where.OR = zoneCondition;
+        }
+      } else {
+        where.zone = { equals: effectiveZone, mode: 'insensitive' };
+      }
+    }
+
+    // Subject filter
+    if (subject && subject !== 'ALL' && subject !== 'all') {
+      const subjectCondition = [
+        { subject: { contains: subject, mode: 'insensitive' } },
+        { subjects: { has: subject } },
+      ];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: subjectCondition }];
+        delete where.OR;
+      } else {
+        where.OR = subjectCondition;
+      }
+    }
+
+    // Relational school & board filters
     if (schoolId) {
       where.schoolId = schoolId;
-    } else {
-      const schoolWhere = {};
-      if (boardId) schoolWhere.boardId = boardId;
-      if (zoneId) {
-        schoolWhere.zoneId = zoneId;
-      } else if (districtId) {
-        schoolWhere.zone = { districtId };
-      }
-      if (Object.keys(schoolWhere).length > 0) {
-        where.school = schoolWhere;
-      }
+    } else if (boardId) {
+      where.school = { ...(where.school || {}), boardId };
     }
 
     if (search && search.trim()) {
       const q = search.trim();
-      where.OR = [
+      const searchConditions = [
         { name: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
         { subject: { contains: q, mode: 'insensitive' } },
         { designation: { contains: q, mode: 'insensitive' } },
-        { school: { name: { contains: q, mode: 'insensitive' } } },
+        { schoolName: { contains: q, mode: 'insensitive' } },
+        { district: { contains: q, mode: 'insensitive' } },
+        { zone: { contains: q, mode: 'insensitive' } },
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchConditions }];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
-    if (page) {
-      const pageNum = Math.max(1, parseInt(page, 10) || 1);
-      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
-      const skip = (pageNum - 1) * limitNum;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 25));
+    const skip = (pageNum - 1) * limitNum;
 
-      const [total, teachers] = await Promise.all([
-        prisma.teacher.count({ where }),
-        prisma.teacher.findMany({
-          where,
-          include: {
-            school: {
-              include: {
-                board: true,
-                zone: {
-                  include: {
-                    district: {
-                      include: { state: true },
-                    },
+    const [total, teachers, schoolCount, privateCount] = await Promise.all([
+      prisma.teacher.count({ where }),
+      prisma.teacher.findMany({
+        where,
+        include: {
+          school: {
+            include: {
+              board: true,
+              zone: {
+                include: {
+                  district: {
+                    include: { state: true },
                   },
                 },
               },
             },
           },
-          orderBy: { name: 'asc' },
-          skip,
-          take: limitNum,
-        }),
-      ]);
-
-      return res.json({
-        success: true,
-        count: teachers.length,
-        total,
-        currentPage: pageNum,
-        totalPages: Math.ceil(total / limitNum) || 1,
-        data: teachers,
-      });
-    }
-
-    const teachers = await prisma.teacher.findMany({
-      where,
-      include: {
-        school: {
-          include: {
-            board: true,
-            zone: {
-              include: {
-                district: {
-                  include: { state: true },
-                },
-              },
-            },
-          },
         },
+        orderBy: { name: 'asc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.teacher.count({ where: { ...where, categoryType: 'School' } }),
+      prisma.teacher.count({ where: { ...where, categoryType: 'Private Tutor' } }),
+    ]);
+
+    return res.json({
+      success: true,
+      count: teachers.length,
+      total,
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+      summary: {
+        totalMatching: total,
+        schoolTeachersCount: schoolCount,
+        privateTeachersCount: privateCount,
       },
-      orderBy: { name: 'asc' },
+      data: teachers,
     });
-    res.json({ success: true, count: teachers.length, total: teachers.length, data: teachers });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTeacherFilters = async (req, res, next) => {
+  try {
+    const [totalCount, schoolCount, privateCount, districtsRaw] = await Promise.all([
+      prisma.teacher.count(),
+      prisma.teacher.count({ where: { categoryType: 'School' } }),
+      prisma.teacher.count({ where: { categoryType: 'Private Tutor' } }),
+      prisma.district.findMany({
+        select: { name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    const allClasses = ['5', '6', '7', '8', '9', '10', '11', '12'];
+    const schoolTypes = ['HS School', 'Primary School', 'Kg/Nursery School', 'CBSE SCHOOL', 'Private Coaching'];
+    const categoryTypes = [
+      { id: 'ALL', name: 'All Teachers', count: totalCount },
+      { id: 'School', name: 'School Teachers', count: schoolCount },
+      { id: 'Private Tutor', name: 'Private Teachers / Tutors', count: privateCount },
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        totalCount,
+        schoolCount,
+        privateCount,
+        categoryTypes,
+        classes: allClasses,
+        schoolTypes,
+        districts: districtsRaw.map((d) => d.name),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -685,21 +807,68 @@ exports.getTeachers = async (req, res, next) => {
 
 exports.createTeacher = async (req, res, next) => {
   try {
-    const { name, phone, email, subject, designation, schoolId } = req.body;
-    if (!name || !phone || !schoolId) {
+    const {
+      name,
+      phone,
+      email,
+      subject,
+      subjects,
+      classes,
+      categoryType,
+      schoolType,
+      schoolName,
+      district,
+      zone,
+      board,
+      designation,
+      schoolId,
+    } = req.body;
+
+    if (!name || !phone) {
       res.status(400);
-      throw new Error('Teacher name, phone number, and schoolId are required');
+      throw new Error('Teacher name and phone number are required');
     }
 
     const cleanPhone = phone.replace(/[\s-]/g, '').trim();
 
-    // Check duplicate phone for same school
+    // Check duplicate phone for same schoolName / institution
     const existing = await prisma.teacher.findFirst({
-      where: { schoolId, phone: cleanPhone },
+      where: {
+        phone: cleanPhone,
+        ...(schoolId ? { schoolId } : { schoolName: schoolName || undefined }),
+      },
     });
     if (existing) {
       res.status(409);
-      throw new Error(`Teacher with phone ${cleanPhone} already exists in this school.`);
+      throw new Error(`A teacher with phone ${cleanPhone} already exists in ${schoolName || 'this institution'}.`);
+    }
+
+    let resolvedSchoolId = schoolId || null;
+    let resolvedDistrict = district || null;
+    let resolvedZone = zone || null;
+    let resolvedBoard = board || null;
+
+    if (schoolId) {
+      const sch = await prisma.school.findUnique({
+        where: { id: schoolId },
+        include: { zone: { include: { district: true } }, board: true },
+      });
+      if (sch) {
+        resolvedDistrict = resolvedDistrict || sch.zone?.district?.name;
+        resolvedZone = resolvedZone || sch.zone?.name;
+        resolvedBoard = resolvedBoard || sch.board?.name;
+      }
+    } else if (schoolName && schoolName.trim()) {
+      const sch = await prisma.school.findFirst({
+        where: { name: { equals: schoolName.trim(), mode: 'insensitive' } },
+        include: { zone: { include: { district: true } }, board: true },
+      });
+      if (sch) {
+        resolvedSchoolId = sch.id;
+        resolvedDistrict = resolvedDistrict || sch.zone?.district?.name;
+        resolvedZone = resolvedZone || sch.zone?.name;
+        resolvedBoard = resolvedBoard || sch.board?.name;
+      }
     }
 
     const teacher = await prisma.teacher.create({
@@ -707,14 +876,29 @@ exports.createTeacher = async (req, res, next) => {
         name: name.trim(),
         phone: cleanPhone,
         email: email ? email.trim() : null,
-        subject: subject ? subject.trim() : null,
-        designation: designation ? designation.trim() : null,
-        schoolId,
+        subject: subject ? subject.trim() : (Array.isArray(subjects) && subjects[0] ? subjects[0] : null),
+        subjects: Array.isArray(subjects) ? subjects : (subject ? [subject.trim()] : []),
+        classes: Array.isArray(classes) ? classes : [],
+        categoryType: categoryType || 'School',
+        schoolType: schoolType || null,
+        schoolName: schoolName ? schoolName.trim() : null,
+        district: resolvedDistrict,
+        zone: resolvedZone,
+        board: resolvedBoard,
+        designation: designation ? designation.trim() : (categoryType === 'Private Tutor' ? 'Private Tutor' : 'Subject Teacher'),
+        schoolId: resolvedSchoolId,
       },
-      include: { school: { include: { board: true, zone: true } } },
+      include: {
+        school: {
+          include: {
+            board: true,
+            zone: { include: { district: { include: { state: true } } } },
+          },
+        },
+      },
     });
 
-    await logActivity(req, 'CREATE', 'MASTER_DATA', `Created Teacher: ${teacher.name} (${teacher.phone})`, null, teacher);
+    await logActivity(req, 'CREATE', 'MASTER_DATA', `Created Teacher: ${teacher.name} (${teacher.categoryType})`, null, teacher);
     res.status(201).json({ success: true, data: teacher });
   } catch (err) {
     next(err);
@@ -724,19 +908,49 @@ exports.createTeacher = async (req, res, next) => {
 exports.updateTeacher = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, phone, email, subject, designation, schoolId } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      subject,
+      subjects,
+      classes,
+      categoryType,
+      schoolType,
+      schoolName,
+      district,
+      zone,
+      board,
+      designation,
+      schoolId,
+    } = req.body;
 
     const teacher = await prisma.teacher.update({
       where: { id },
       data: {
         name: name !== undefined ? name.trim() : undefined,
         phone: phone !== undefined ? phone.replace(/[\s-]/g, '').trim() : undefined,
-        email: email !== undefined ? email.trim() : undefined,
-        subject: subject !== undefined ? subject.trim() : undefined,
+        email: email !== undefined ? (email ? email.trim() : null) : undefined,
+        subject: subject !== undefined ? (subject ? subject.trim() : null) : undefined,
+        subjects: subjects !== undefined ? (Array.isArray(subjects) ? subjects : [subjects]) : undefined,
+        classes: classes !== undefined ? (Array.isArray(classes) ? classes : [classes]) : undefined,
+        categoryType: categoryType !== undefined ? categoryType : undefined,
+        schoolType: schoolType !== undefined ? schoolType : undefined,
+        schoolName: schoolName !== undefined ? schoolName.trim() : undefined,
+        district: district !== undefined ? district : undefined,
+        zone: zone !== undefined ? zone : undefined,
+        board: board !== undefined ? board : undefined,
         designation: designation !== undefined ? designation.trim() : undefined,
-        schoolId: schoolId || undefined,
+        schoolId: schoolId !== undefined ? schoolId : undefined,
       },
-      include: { school: true },
+      include: {
+        school: {
+          include: {
+            board: true,
+            zone: { include: { district: { include: { state: true } } } },
+          },
+        },
+      },
     });
     res.json({ success: true, data: teacher });
   } catch (err) {
@@ -753,6 +967,7 @@ exports.deleteTeacher = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // ─── MASTER DATA OVERVIEW & HIERARCHICAL TREE SUMMARY ───────────────────────
 exports.getMasterDataSummary = async (req, res, next) => {

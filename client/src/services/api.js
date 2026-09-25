@@ -340,14 +340,45 @@ export const updateSettingsAPI = async (key, value) => {
 
 // School Visits Services
 export const createVisitAPI = async (formData) => {
-  const response = await api.post('/visits', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const isFormData = typeof FormData !== 'undefined' && formData instanceof FormData;
+  const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+  const response = await api.post('/visits', formData, config);
   return response.data;
 };
 
-export const getVisitsAPI = async (page = 1, limit = 10) => {
-  const response = await api.get('/visits', { params: { page, limit } });
+export const getVisitsAPI = async (pageOrParams = 1, limit = 10, extraParams = {}) => {
+  const queryParams =
+    typeof pageOrParams === 'object' && pageOrParams !== null
+      ? pageOrParams
+      : { page: pageOrParams, limit, ...extraParams };
+  const response = await api.get('/visits', { params: queryParams });
+  return response.data;
+};
+
+export const getVisitSummaryAPI = async () => {
+  const response = await api.get('/visits/summary');
+  return response.data;
+};
+
+export const getVisitByIdAPI = async (id) => {
+  const response = await api.get(`/visits/${id}`);
+  return response.data;
+};
+
+export const updateVisitAPI = async (id, formData) => {
+  const isFormData = typeof FormData !== 'undefined' && formData instanceof FormData;
+  const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+  const response = await api.put(`/visits/${id}`, formData, config);
+  return response.data;
+};
+
+export const updateVisitStatusAPI = async (id, status) => {
+  const response = await api.put(`/visits/${id}/status`, { status });
+  return response.data;
+};
+
+export const deleteVisitAPI = async (id) => {
+  const response = await api.delete(`/visits/${id}`);
   return response.data;
 };
 
@@ -489,6 +520,10 @@ export const deleteSchoolAPI = async (id) => {
 };
 
 // Teachers
+export const getTeacherFiltersAPI = async () => {
+  const response = await api.get('/masterdata/teachers/filters');
+  return response.data;
+};
 export const getTeachersAPI = async (params = {}) => {
   const response = await api.get('/masterdata/teachers', { params });
   return response.data;
