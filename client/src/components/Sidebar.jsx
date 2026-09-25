@@ -39,11 +39,21 @@ const Sidebar = () => {
 
   if (loading) {
     return (
-      <aside className="w-[260px] hidden md:flex flex-col p-8 gap-4 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5">
-        <div className="skeleton h-10 w-full rounded-xl" />
-        <div className="skeleton h-10 w-full rounded-xl" />
-        <div className="skeleton h-10 w-full rounded-xl" />
-        <div className="skeleton h-10 w-full rounded-xl" />
+      <aside className="w-[260px] hidden md:flex flex-col p-6 gap-4 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5 md:fixed md:top-0 md:left-0 md:bottom-0 md:h-screen md:z-30">
+        <div className="flex items-center gap-3 pb-4 border-b border-slate-200/60 dark:border-white/5">
+          <div className="w-10 h-10 rounded-xl skeleton shrink-0" />
+          <div className="space-y-1.5 flex-1">
+            <div className="w-24 h-3.5 rounded skeleton" />
+            <div className="w-16 h-2.5 rounded skeleton" />
+          </div>
+        </div>
+        <div className="space-y-2 mt-2">
+          <div className="skeleton h-10 w-full rounded-xl" />
+          <div className="skeleton h-10 w-full rounded-xl" />
+          <div className="skeleton h-10 w-full rounded-xl" />
+          <div className="skeleton h-10 w-full rounded-xl" />
+          <div className="skeleton h-10 w-full rounded-xl" />
+        </div>
       </aside>
     );
   }
@@ -51,7 +61,7 @@ const Sidebar = () => {
   return (
     <aside
       data-tour="sidebar"
-      className="w-[260px] hidden md:flex flex-col justify-between p-6 gap-6 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5 md:fixed md:top-0 md:left-0 md:bottom-0 md:h-screen md:z-[90] overflow-y-auto"
+      className="w-[260px] hidden md:flex flex-col justify-between p-6 gap-6 border-r backdrop-blur-md bg-white/40 border-slate-200/80 dark:bg-dark-card/40 dark:border-white/5 md:fixed md:top-0 md:left-0 md:bottom-0 md:h-screen md:z-30 overflow-y-auto"
     >
       <div className="flex flex-col gap-1.5">
         <div className="px-4 py-2 mb-2">

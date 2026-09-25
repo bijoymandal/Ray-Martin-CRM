@@ -48,7 +48,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="h-[70px] px-8 flex items-center justify-between fixed top-0 right-0 left-0 md:left-[260px] z-[100] backdrop-blur-md border-b bg-white/70 border-slate-200/80 dark:bg-dark-main/70 dark:border-white/5">
+    <nav className="h-[70px] px-8 flex items-center justify-between fixed top-0 right-0 left-0 md:left-[260px] z-30 backdrop-blur-md border-b bg-white/70 border-slate-200/80 dark:bg-dark-main/70 dark:border-white/5">
       <div className="flex items-center gap-4">
         <span className="text-2xl font-extrabold tracking-tight text-gradient-accent">CRM Pro</span>
       </div>
@@ -100,7 +100,7 @@ const Navbar = () => {
 
             {/* Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-60 rounded-2xl border bg-white/95 dark:bg-dark-card/95 backdrop-blur-lg border-slate-200/80 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none p-2 flex flex-col gap-1 animate-fade-in z-[110]">
+              <div className="absolute right-0 mt-2 w-60 rounded-2xl border bg-white/95 dark:bg-dark-card/95 backdrop-blur-lg border-slate-200/80 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none p-2 flex flex-col gap-1 animate-fade-in z-40">
                 {/* Header User info */}
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-white/5 flex flex-col mb-1">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user.name}</span>

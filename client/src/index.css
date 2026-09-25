@@ -37,6 +37,63 @@
   }
 }
 
+/* Flipkart-Style Skeleton & Shimmer Effect */
+@keyframes flipkart-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton,
+.flipkart-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f3f6;
+}
+
+.dark .skeleton,
+.dark .flipkart-skeleton {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.skeleton::after,
+.flipkart-skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: flipkart-shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.dark .skeleton::after,
+.dark .flipkart-skeleton::after {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .flipkart-skeleton::after {
+    animation: none;
+  }
+}
+
 /* Custom Base Classes */
 @utility glass-card {
   @apply backdrop-blur-md transition-all duration-300 rounded-2xl border shadow-lg;

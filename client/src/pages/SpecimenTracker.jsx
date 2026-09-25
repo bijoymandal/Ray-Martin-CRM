@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
+import { FlipkartTableSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   getProductsAPI,
@@ -764,9 +765,7 @@ const SpecimenTracker = () => {
 
                 {/* Records List */}
                 {loading ? (
-                  <div className="py-12 text-center text-slate-400 text-xs font-semibold flex items-center justify-center gap-2">
-                    <RefreshCw size={16} className="animate-spin text-amber-500" /> Loading distribution records...
-                  </div>
+                  <FlipkartTableSkeleton rows={6} cols={6} hasThumbnail={true} />
                 ) : records.length === 0 ? (
                   <div className="py-12 text-center text-slate-400 text-xs space-y-2">
                     <BookOpen size={32} className="mx-auto opacity-30" />
@@ -934,14 +933,14 @@ const SpecimenTracker = () => {
 
       {/* Camera Capture Modal */}
       {showCameraModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 w-full max-w-md space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between text-white">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 w-full max-w-md space-y-4 shadow-2xl my-auto">
+            <div className="flex items-center justify-between text-white shrink-0">
               <h3 className="text-sm font-bold flex items-center gap-2">
                 <Camera size={16} className="text-amber-400" />
                 Capture Proof Photo
               </h3>
-              <button onClick={stopCamera} className="p-1 hover:bg-white/10 rounded-lg">
+              <button onClick={stopCamera} className="p-1 hover:bg-white/10 rounded-lg cursor-pointer">
                 <X size={16} />
               </button>
             </div>
@@ -955,14 +954,14 @@ const SpecimenTracker = () => {
               <button
                 type="button"
                 onClick={stopCamera}
-                className="flex-1 py-2.5 border border-white/10 text-white rounded-xl text-xs font-bold hover:bg-white/5"
+                className="flex-1 py-2.5 border border-white/10 text-white rounded-xl text-xs font-bold hover:bg-white/5 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={capturePhoto}
-                className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 hover:brightness-110 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 hover:brightness-110 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Camera size={14} /> Snap Photo
               </button>
@@ -974,14 +973,14 @@ const SpecimenTracker = () => {
       {/* Image Preview Lightbox */}
       {previewImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in"
           onClick={() => setPreviewImage(null)}
         >
           <div className="relative max-w-2xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
             <img src={previewImage} alt="Enlarged proof" className="w-full h-full object-contain" />
             <button
               onClick={() => setPreviewImage(null)}
-              className="absolute top-3 right-3 p-2 bg-black/60 text-white rounded-full hover:bg-black"
+              className="absolute top-3 right-3 p-2 bg-black/60 text-white rounded-full hover:bg-black cursor-pointer"
             >
               <X size={16} />
             </button>
@@ -991,7 +990,7 @@ const SpecimenTracker = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
           <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
             <div className="flex items-center gap-3 text-rose-500">
               <div className="p-2 bg-rose-500/10 rounded-xl">

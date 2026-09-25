@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
 import KpiCard from '../components/KpiCard';
+import { FlipkartSchoolCardSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   getStatesAPI,
@@ -583,11 +584,7 @@ const Districts = () => {
 
               {/* Districts Grid */}
               {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="skeleton h-44 rounded-2xl" />
-                  ))}
-                </div>
+                <FlipkartSchoolCardSkeleton count={6} />
               ) : filteredDistricts.length === 0 ? (
                 <div className="glass-card p-12 text-center flex flex-col items-center justify-center gap-3">
                   <MapPin size={40} className="text-slate-300 dark:text-slate-600" />
@@ -999,8 +996,8 @@ const Districts = () => {
 
       {/* MODAL: CREATE / EDIT DISTRICT */}
       {districtModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl my-auto">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
               <MapPin size={18} className="text-indigo-600" />
               <span>{districtModal.mode === 'create' ? 'Add New District' : 'Edit District'}</span>
@@ -1074,8 +1071,8 @@ const Districts = () => {
 
       {/* MODAL: CREATE / EDIT ZONE */}
       {zoneModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl my-auto">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
               <Layers size={18} className="text-indigo-600" />
               <span>{zoneModal.mode === 'create' ? 'Add Operational Zone' : 'Edit Zone'}</span>
@@ -1149,8 +1146,8 @@ const Districts = () => {
 
       {/* MODAL: CONFIGURE USER DISTRICT ACCESS */}
       {userAccessModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="glass-card w-full max-w-lg p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="glass-card w-full max-w-lg p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 shadow-2xl rounded-2xl flex flex-col max-h-[85vh] my-auto">
             <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-slate-200/60 dark:border-white/5">
               <div>
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">

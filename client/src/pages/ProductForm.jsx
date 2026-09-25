@@ -733,7 +733,7 @@ const ProductForm = () => {
       {/* Lightbox full-screen image viewer modal */}
       {activeLightBox && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in p-6"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in p-6"
           onClick={() => setActiveLightBox(null)}
         >
           <button

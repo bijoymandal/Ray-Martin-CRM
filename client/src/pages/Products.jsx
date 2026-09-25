@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { getProductsAPI, updateProductAPI, deleteProductAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { ShoppingBag, Trash2, Edit2, HelpCircle, Check, Image, Percent, Plus } from 'lucide-react';
+import { ShoppingBag, Trash2, Edit2, HelpCircle, Check, Image, Percent, Plus, LayoutGrid, List, RefreshCw, Star } from 'lucide-react';
+import { FlipkartProductGridSkeleton, FlipkartTableSkeleton } from '../components/Skeleton';
 
 const Products = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' (Flipkart style) | 'table'
 
   // Find products menu permission configuration dynamically from DB rules
   const { permissions } = useAuth();
@@ -177,20 +179,212 @@ const Products = () => {
             </div>
           )}
 
-          {/* Expanded Table Listing Card */}
+          {/* Expanded Table / Grid Listing Card */}
           <div className="glass-card p-6 border-slate-200/60 dark:border-white/5 w-full animate-fade-in">
-            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-4">
-              Registered Products
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-200/60 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                  Registered Products
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                  {products.length} Products
+                </span>
+              </div>
+
+              {/* View mode toggle & Refresh */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'grid'
+                        ? 'bg-white dark:bg-dark-card text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                    title="Flipkart E-Commerce Grid View"
+                  >
+                    <LayoutGrid size={14} />
+                    <span className="hidden sm:inline">Flipkart Grid</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'table'
+                        ? 'bg-white dark:bg-dark-card text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                    title="Table View"
+                  >
+                    <List size={14} />
+                    <span className="hidden sm:inline">Table</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => fetchProducts(currentPage)}
+                  disabled={loading}
+                  className="p-2 rounded-xl border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                  title="Refresh Products"
+                >
+                  <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-500' : ''} />
+                </button>
+              </div>
+            </div>
 
             {loading ? (
-              <div className="text-center py-10 text-xs font-semibold text-slate-400">
-                Loading Products...
-              </div>
+              viewMode === 'grid' ? (
+                <FlipkartProductGridSkeleton count={8} />
+              ) : (
+                <FlipkartTableSkeleton rows={6} cols={7} hasThumbnail={true} />
+              )
             ) : products.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-slate-200 dark:border-white/5 rounded-2xl">
                 <ShoppingBag className="mx-auto text-slate-300 dark:text-slate-600 mb-2 animate-bounce" size={32} />
                 <p className="text-xs font-semibold text-slate-400">No products registered yet. Click "Create Product" to start.</p>
+              </div>
+            ) : viewMode === 'grid' ? (
+              /* Flipkart-Style Product Cards Grid */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                {products.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="glass-card p-4 flex flex-col justify-between border border-slate-200/70 dark:border-white/5 relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-xl transition-all duration-300"
+                  >
+                    {/* Top Media Area */}
+                    <div>
+                      <div className="relative aspect-square w-full rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex items-center justify-center overflow-hidden p-2">
+                        {prod.image ? (
+                          <img
+                            src={prod.image}
+                            alt={prod.name}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-slate-300 dark:text-slate-600">
+                            <Image size={36} />
+                            <span className="text-[10px] mt-1 font-semibold text-slate-400">No Preview</span>
+                          </div>
+                        )}
+
+                        {/* Top-left: Discount Tag */}
+                        {prod.discount > 0 && (
+                          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-pink-500 text-white shadow-sm">
+                            {prod.discount}% OFF
+                          </span>
+                        )}
+
+                        {/* Top-right: New badge or Status */}
+                        <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1">
+                          {isNewProduct(prod.createdAt) && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500 text-white shadow-sm">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+                              </span>
+                              New
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="mt-3.5 space-y-1.5">
+                        {/* Category Path */}
+                        {prod.category && (
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                            {prod.category.subject?.class?.name || 'Class'} &gt; {prod.category.name}
+                          </p>
+                        )}
+
+                        {/* Product Title */}
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 line-clamp-2 min-h-[32px] group-hover:text-indigo-500 transition-colors" title={prod.name}>
+                          {prod.name}
+                        </h3>
+
+                        {/* Flipkart Rating Badge */}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+                            <span>4.4</span>
+                            <Star size={9} className="fill-white" />
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            (42 ratings)
+                          </span>
+                        </div>
+
+                        {/* Flipkart Price Block */}
+                        <div className="flex items-baseline gap-2 pt-1">
+                          <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+                            ₹{parseFloat(prod.discountedPrice || prod.price || 0).toFixed(2)}
+                          </span>
+                          {prod.discount > 0 && (
+                            <>
+                              <span className="text-xs text-slate-400 line-through">
+                                ₹{parseFloat(prod.price || 0).toFixed(2)}
+                              </span>
+                              <span className="text-xs font-bold text-emerald-500">
+                                {prod.discount}% off
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Coupon Pill */}
+                        {prod.coupon && (
+                          <div className="pt-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                              Coupon: {prod.coupon}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Footer */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                      {/* Status Toggle */}
+                      {canToggleStatus ? (
+                        <button
+                          onClick={() => handleToggleStatus(prod)}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                            prod.status
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${prod.status ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                          {prod.status ? 'Active' : 'Inactive'}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {prod.status ? 'Active' : 'Inactive'}
+                        </span>
+                      )}
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1.5">
+                        {canEdit && (
+                          <button
+                            onClick={() => navigate(`/products/form/${prod.id}`)}
+                            className="p-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                            title="Edit Product"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeleteProduct(prod)}
+                            className="p-1.5 rounded-lg border border-slate-200/60 dark:border-white/5 text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                            title="Delete Product"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -365,7 +559,7 @@ const Products = () => {
 
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
           <div className="glass-card max-w-md w-full p-6 border border-slate-200/60 dark:border-white/5 shadow-2xl animate-scale-up text-left">
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 font-bold">
               <HelpCircle className="text-indigo-500 shrink-0" size={20} />

@@ -125,10 +125,10 @@ const CreateModal = ({ onClose, onSave, segments }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200/80 dark:border-white/8 animate-slide-up" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200/80 dark:border-white/8 animate-slide-up max-h-[90vh] flex flex-col my-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/5 shrink-0">
           <div>
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Megaphone size={16} className="text-indigo-500" />
@@ -549,7 +549,7 @@ const Marketing = () => {
 
       {/* ── Delete Confirm ── */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onClick={() => setDeleteConfirm(null)}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto" onClick={() => setDeleteConfirm(null)}>
           <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200/80 dark:border-white/8 p-6 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">

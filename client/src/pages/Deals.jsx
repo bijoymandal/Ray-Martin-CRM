@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
+import { FlipkartTableSkeleton } from '../components/Skeleton';
 import { getDealsAPI, createDealAPI, updateDealAPI, deleteDealAPI, getContactsAPI } from '../services/api';
 import { Plus, Edit2, Trash2, X, AlertCircle, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -223,7 +224,9 @@ const Deals = () => {
 
           {/* Deals Table */}
           {loading ? (
-            <div className="skeleton h-[350px] rounded-2xl" />
+            <div className="glass-card p-6">
+              <FlipkartTableSkeleton rows={6} cols={6} hasThumbnail={false} />
+            </div>
           ) : (
             <div className="glass-card p-0 overflow-hidden">
               <div className="overflow-x-auto w-full">
@@ -336,9 +339,9 @@ const Deals = () => {
 
           {/* Add / Edit Deal Modal */}
           {showAddEditModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-              <div className="modal-content glass-card w-full max-w-[500px] p-8">
-                <div className="flex justify-between items-center mb-6">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 overflow-y-auto">
+              <div className="modal-content glass-card w-full max-w-[500px] p-6 max-h-[90vh] flex flex-col my-auto">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
                   <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">
                     {isEditing ? 'Edit Deal' : 'Create New Deal'}
                   </h3>
@@ -349,7 +352,7 @@ const Deals = () => {
                     <X size={18} />
                   </button>
                 </div>
-                <form onSubmit={handleSaveDeal} className="flex flex-col gap-4" autoComplete="off">
+                <form onSubmit={handleSaveDeal} className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4" autoComplete="off">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Deal Title *</label>
                     <input

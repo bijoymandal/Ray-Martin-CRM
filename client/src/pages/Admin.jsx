@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
@@ -23,8 +23,18 @@ import {
   getActivityLogsAPI,
   getSettingsAPI,
   updateSettingsAPI,
+  getTaskSummaryAPI,
+  getTasksAPI,
+  createTaskAPI,
+  updateTaskStatusAPI,
+  deleteTaskAPI,
+  getSchoolsAPI,
+  getDistrictsAPI,
+  getZonesAPI,
 } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import KpiCard from '../components/KpiCard';
 import {
   Shield,
   Mail,
@@ -35,7 +45,6 @@ import {
   Plus,
   Trash2,
   Settings,
-  Link,
   ChevronRight,
   RefreshCw,
   Server,
@@ -43,9 +52,39 @@ import {
   Save,
   Eye,
   EyeOff,
+  CheckSquare,
+  Clock,
+  ExternalLink,
+  CheckCircle2,
+  School as SchoolIcon,
+  MapPin,
+  FileCheck,
+  Search,
+  Filter,
+  User,
+  X,
+  Phone,
+  Building,
 } from 'lucide-react';
 
+const TASK_PRIORITY_BADGES = {
+  URGENT: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+  HIGH: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+  MEDIUM: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20',
+  LOW: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20',
+};
+
+const TASK_CATEGORY_LABELS = {
+  SCHOOL_VISIT: 'School Visit',
+  TEACHER_FOLLOWUP: 'Teacher Follow-up',
+  SPECIMEN_DISTRIBUTION: 'Specimen Distribution',
+  DEAL_CLOSING: 'Deal Closing',
+  MARKETING_CAMPAIGN: 'Marketing Campaign',
+  GENERAL: 'General Task',
+};
+
 const Admin = () => {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('users'); // 'users', 'menus', 'permissions'
 
@@ -143,6 +182,38 @@ const Admin = () => {
   const [activityPage, setActivityPage] = useState(1);
   const [activityTotalPages, setActivityTotalPages] = useState(1);
   const activityLimit = 20;
+
+  // Task Operations states in Superadmin Center
+  const [adminTasks, setAdminTasks] = useState([]);
+  const [adminTasksLoading, setAdminTasksLoading] = useState(false);
+  const [adminTaskSummary, setAdminTaskSummary] = useState(null);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('ALL');
+  const [taskPriorityFilter, setTaskPriorityFilter] = useState('ALL');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState('ALL');
+  const [taskDistrictFilter, setTaskDistrictFilter] = useState('ALL');
+
+  // Reference data for task operations
+  const [adminSchools, setAdminSchools] = useState([]);
+  const [adminDistricts, setAdminDistricts] = useState([]);
+  const [adminZones, setAdminZones] = useState([]);
+  const [allUsersList, setAllUsersList] = useState([]);
+
+  // Task Modals & Creation
+  const [showAdminTaskModal, setShowAdminTaskModal] = useState(false);
+  const [adminTaskSubmitting, setAdminTaskSubmitting] = useState(false);
+  const [selectedTaskDetail, setSelectedTaskDetail] = useState(null);
+  const [adminModalDistrictId, setAdminModalDistrictId] = useState('');
+  const [adminModalZoneId, setAdminModalZoneId] = useState('');
+  const [adminTaskFormData, setAdminTaskFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'MEDIUM',
+    category: 'SCHOOL_VISIT',
+    dueDate: '',
+    assignedToId: '',
+    schoolId: '',
+  });
 
   const fetchUsers = async (page = 1) => {
     setUsersLoading(true);
@@ -297,6 +368,146 @@ const Admin = () => {
     }
   };
 
+  const fetchAdminTasks = async () => {
+    setAdminTasksLoading(true);
+    try {
+      setError('');
+      const params = { limit: 100 };
+      if (taskSearch.trim()) params.search = taskSearch.trim();
+      if (taskStatusFilter !== 'ALL') params.status = taskStatusFilter;
+      if (taskPriorityFilter !== 'ALL') params.priority = taskPriorityFilter;
+      if (taskAssigneeFilter !== 'ALL') params.assignedToId = taskAssigneeFilter;
+      if (taskDistrictFilter !== 'ALL') params.districtId = taskDistrictFilter;
+
+      const [tasksRes, summaryRes] = await Promise.all([
+        getTasksAPI(params),
+        getTaskSummaryAPI(),
+      ]);
+
+      if (tasksRes.success) {
+        setAdminTasks(tasksRes.data);
+      }
+      if (summaryRes.success) {
+        setAdminTaskSummary(summaryRes.data);
+      }
+    } catch (err) {
+      console.error('Error loading admin tasks:', err);
+      setError(err.response?.data?.message || 'Error loading task list');
+    } finally {
+      setAdminTasksLoading(false);
+    }
+  };
+
+  const loadAdminTaskReferences = async () => {
+    try {
+      const [schoolsRes, distRes, zonesRes, usersRes] = await Promise.all([
+        getSchoolsAPI({ limit: 1000 }),
+        getDistrictsAPI(),
+        getZonesAPI(),
+        getUsersAPI(1, 100),
+      ]);
+
+      if (schoolsRes.success) setAdminSchools(schoolsRes.data);
+      if (distRes.success) setAdminDistricts(distRes.data);
+      if (zonesRes.success) setAdminZones(zonesRes.data);
+      if (usersRes.success) setAllUsersList(usersRes.data);
+    } catch (err) {
+      console.error('Error loading task references:', err);
+    }
+  };
+
+  const handleAdminTaskStatusChange = async (taskId, newStatus) => {
+    try {
+      setError('');
+      setSuccess('');
+      const res = await updateTaskStatusAPI(taskId, newStatus);
+      if (res.success) {
+        setSuccess(`Task status updated to ${newStatus}`);
+        setAdminTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+        );
+        getTaskSummaryAPI().then((s) => s.success && setAdminTaskSummary(s.data));
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      setError(err.response?.data?.message || 'Error updating task status');
+    }
+  };
+
+  const handleAdminDeleteTask = async (taskId, taskTitle) => {
+    if (!window.confirm(`Are you sure you want to delete task "${taskTitle}"?`)) return;
+    try {
+      setError('');
+      setSuccess('');
+      const res = await deleteTaskAPI(taskId);
+      if (res.success) {
+        setSuccess('Task deleted successfully');
+        setAdminTasks((prev) => prev.filter((t) => t.id !== taskId));
+        getTaskSummaryAPI().then((s) => s.success && setAdminTaskSummary(s.data));
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError(err.response?.data?.message || 'Error deleting task');
+    }
+  };
+
+  const handleAdminCreateTask = async (e) => {
+    e.preventDefault();
+    if (!adminTaskFormData.title.trim()) {
+      setError('Task title is required');
+      return;
+    }
+    if (!adminTaskFormData.dueDate) {
+      setError('Due date is required');
+      return;
+    }
+    if (!adminTaskFormData.assignedToId) {
+      setError('Please assign the task to a user');
+      return;
+    }
+
+    try {
+      setAdminTaskSubmitting(true);
+      setError('');
+      setSuccess('');
+      const payload = {
+        title: adminTaskFormData.title.trim(),
+        description: adminTaskFormData.description.trim(),
+        priority: adminTaskFormData.priority,
+        category: adminTaskFormData.category,
+        dueDate: adminTaskFormData.dueDate,
+        assignedToId: adminTaskFormData.assignedToId,
+        schoolId: adminTaskFormData.schoolId || undefined,
+      };
+
+      const res = await createTaskAPI(payload);
+      if (res.success) {
+        setSuccess('Task created successfully!');
+        setShowAdminTaskModal(false);
+        setAdminTaskFormData({
+          title: '',
+          description: '',
+          priority: 'MEDIUM',
+          category: 'SCHOOL_VISIT',
+          dueDate: '',
+          assignedToId: '',
+          schoolId: '',
+        });
+        setAdminModalDistrictId('');
+        setAdminModalZoneId('');
+        fetchAdminTasks();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error creating task:', err);
+      setError(err.response?.data?.message || 'Failed to create task');
+    } finally {
+      setAdminTaskSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoles();
     fetchPermissionActions();
@@ -318,8 +529,12 @@ const Admin = () => {
       fetchActivityLogs(activityPage);
     } else if (activeTab === 'settings') {
       fetchSettings();
+    } else if (activeTab === 'tasks') {
+      fetchAdminTasks();
+      loadAdminTaskReferences();
     }
-  }, [activeTab, usersPage, activityPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, usersPage, activityPage, taskStatusFilter, taskPriorityFilter, taskAssigneeFilter, taskDistrictFilter]);
 
   // Handle user role changes
   const handleRoleChange = async (userId, newRole) => {
@@ -671,6 +886,17 @@ const Admin = () => {
                   }`}
                 >
                   System Settings
+                </button>
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`pb-4 px-2 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'tasks'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  <CheckSquare size={16} />
+                  <span>Task Operations</span>
                 </button>
               </>
             )}
@@ -1574,6 +1800,361 @@ const Admin = () => {
               </>
             )}
           </div>
+        ) : activeTab === 'tasks' ? (
+          <div className="flex flex-col gap-6 animate-fade-in w-full">
+            {/* Header & Controls */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-white/5 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <span className="text-xs bg-indigo-500/10 text-indigo-600 px-2 py-0.5 rounded-md dark:bg-indigo-500/20 dark:text-indigo-400 font-bold">
+                    ADMIN OPS
+                  </span>
+                  Task Management & Operations
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  Superadmin central task oversight for school visits, specimen distribution, and field reports across West Bengal.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate('/tasks')}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <ExternalLink size={14} />
+                  <span>Open Workspace (/tasks)</span>
+                </button>
+                <button
+                  onClick={() => setShowAdminTaskModal(true)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm shadow-indigo-500/20 transition-all cursor-pointer"
+                >
+                  <Plus size={15} />
+                  <span>Create Task</span>
+                </button>
+              </div>
+            </div>
+
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <KpiCard
+                title="Total Tasks"
+                value={adminTaskSummary?.totalTasks ?? adminTasks.length}
+                icon={<CheckSquare size={18} />}
+                accentColor="indigo"
+                subtitle="All tasks"
+              />
+              <KpiCard
+                title="To Do"
+                value={adminTaskSummary?.todoCount ?? 0}
+                icon={<Clock size={18} />}
+                accentColor="blue"
+                subtitle="Pending kickoff"
+                onClick={() => setTaskStatusFilter(taskStatusFilter === 'TODO' ? 'ALL' : 'TODO')}
+                isActive={taskStatusFilter === 'TODO'}
+              />
+              <KpiCard
+                title="In Progress"
+                value={adminTaskSummary?.inProgressCount ?? 0}
+                icon={<RefreshCw size={18} />}
+                accentColor="amber"
+                subtitle="Active in field"
+                onClick={() => setTaskStatusFilter(taskStatusFilter === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS')}
+                isActive={taskStatusFilter === 'IN_PROGRESS'}
+              />
+              <KpiCard
+                title="Under Review"
+                value={adminTaskSummary?.underReviewCount ?? 0}
+                icon={<FileCheck size={18} />}
+                accentColor="purple"
+                subtitle="Submitted reports"
+                onClick={() => setTaskStatusFilter(taskStatusFilter === 'UNDER_REVIEW' ? 'ALL' : 'UNDER_REVIEW')}
+                isActive={taskStatusFilter === 'UNDER_REVIEW'}
+              />
+              <KpiCard
+                title="Completed"
+                value={adminTaskSummary?.completedCount ?? 0}
+                icon={<CheckCircle2 size={18} />}
+                accentColor="emerald"
+                subtitle="Finished"
+                onClick={() => setTaskStatusFilter(taskStatusFilter === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
+                isActive={taskStatusFilter === 'COMPLETED'}
+              />
+              <KpiCard
+                title="Overdue"
+                value={adminTaskSummary?.overdueCount ?? 0}
+                icon={<AlertCircle size={18} />}
+                accentColor="rose"
+                subtitle="Past deadline"
+              />
+            </div>
+
+            {/* Filter & Search Toolbar */}
+            <div className="glass-card p-4 flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[220px]">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={taskSearch}
+                  onChange={(e) => setTaskSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') fetchAdminTasks();
+                  }}
+                  placeholder="Search tasks by title or notes..."
+                  className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                {taskSearch && (
+                  <button
+                    onClick={() => {
+                      setTaskSearch('');
+                      setTimeout(fetchAdminTasks, 0);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1 text-xs text-slate-400">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+              </div>
+
+              {/* Status Filter */}
+              <select
+                value={taskStatusFilter}
+                onChange={(e) => setTaskStatusFilter(e.target.value)}
+                className="bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="UNDER_REVIEW">Under Review</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+
+              {/* Priority Filter */}
+              <select
+                value={taskPriorityFilter}
+                onChange={(e) => setTaskPriorityFilter(e.target.value)}
+                className="bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="ALL">All Priorities</option>
+                <option value="URGENT">Urgent</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+
+              {/* Assignee Filter */}
+              <select
+                value={taskAssigneeFilter}
+                onChange={(e) => setTaskAssigneeFilter(e.target.value)}
+                className="bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer max-w-[180px]"
+              >
+                <option value="ALL">All Assignees</option>
+                {allUsersList.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.email}
+                  </option>
+                ))}
+              </select>
+
+              {/* District Filter */}
+              <select
+                value={taskDistrictFilter}
+                onChange={(e) => setTaskDistrictFilter(e.target.value)}
+                className="bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer max-w-[160px]"
+              >
+                <option value="ALL">All Districts</option>
+                {adminDistricts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={fetchAdminTasks}
+                title="Reload Tasks"
+                className="p-2 border border-slate-200 dark:border-white/10 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+              >
+                <RefreshCw size={15} className={adminTasksLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {/* Tasks List Table */}
+            <div className="glass-card p-0 overflow-hidden">
+              {adminTasksLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="w-8 h-8 rounded-full border-4 border-indigo-500/20 border-t-indigo-600 animate-spin" />
+                  <span className="text-xs text-slate-400 font-semibold">Loading system tasks...</span>
+                </div>
+              ) : adminTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                    <CheckSquare size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No tasks found</h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                      No tasks match your active filters. Try resetting the filters or create a new task.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowAdminTaskModal(true)}
+                    className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Create First Task
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200/60 dark:border-white/5 bg-slate-50/20 dark:bg-white/1">
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400">Task & Category</th>
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400">Assigned To</th>
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400">School / Location</th>
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400">Priority & Due</th>
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400">Status</th>
+                        <th className="p-4 text-[10px] uppercase font-bold tracking-wider text-slate-400 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/50 dark:divide-white/3">
+                      {adminTasks.map((task) => {
+                        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED';
+                        const hasReport = task.comments?.some((c) => c.content?.includes('[SCHOOL SUBMISSION REPORT]'));
+
+                        return (
+                          <tr
+                            key={task.id}
+                            className="hover:bg-slate-50/50 dark:hover:bg-white/1 transition-colors"
+                          >
+                            <td className="p-4">
+                              <div className="flex flex-col gap-1 max-w-sm">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="font-bold text-slate-800 dark:text-slate-100 text-xs hover:text-indigo-600 cursor-pointer"
+                                    onClick={() => setSelectedTaskDetail(task)}
+                                  >
+                                    {task.title}
+                                  </span>
+                                  {hasReport && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                                      <FileCheck size={11} /> Report
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                                    {TASK_CATEGORY_LABELS[task.category] || task.category || 'General'}
+                                  </span>
+                                </div>
+                                {task.description && (
+                                  <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                                    {task.description}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              {task.assignedTo ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                    {task.assignedTo.name ? task.assignedTo.name[0] : (task.assignedTo.email ? task.assignedTo.email[0] : 'U')}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-snug">
+                                      {task.assignedTo.name || task.assignedTo.email}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                      {task.assignedTo.role}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">Unassigned</span>
+                              )}
+                            </td>
+
+                            <td className="p-4">
+                              {task.school ? (
+                                <div className="flex flex-col gap-0.5 max-w-[220px]">
+                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 truncate">
+                                    <SchoolIcon size={13} className="text-indigo-500 shrink-0" />
+                                    <span className="truncate">{task.school.name}</span>
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 flex items-center gap-1 truncate">
+                                    <MapPin size={11} className="text-rose-500 shrink-0" />
+                                    <span className="truncate">
+                                      {task.school.zone?.name || 'Zone'}
+                                      {task.school.zone?.district ? `, ${task.school.zone.district.name}` : ''}
+                                    </span>
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">General / Unlinked</span>
+                              )}
+                            </td>
+
+                            <td className="p-4">
+                              <div className="flex flex-col gap-1.5">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold w-max ${TASK_PRIORITY_BADGES[task.priority] || TASK_PRIORITY_BADGES.MEDIUM}`}>
+                                  {task.priority || 'MEDIUM'}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                  <Calendar size={12} className="text-slate-400" />
+                                  <span>{task.dueDate ? formatDate(task.dueDate) : 'No deadline'}</span>
+                                  {isOverdue && (
+                                    <span className="text-[9px] font-bold text-rose-500 bg-rose-500/10 px-1 rounded uppercase">
+                                      Overdue
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleAdminTaskStatusChange(task.id, e.target.value)}
+                                className="bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                              >
+                                <option value="TODO">To Do</option>
+                                <option value="IN_PROGRESS">In Progress</option>
+                                <option value="UNDER_REVIEW">Under Review</option>
+                                <option value="COMPLETED">Completed</option>
+                              </select>
+                            </td>
+
+                            <td className="p-4 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={() => setSelectedTaskDetail(task)}
+                                  title="View Task Details & Submission Report"
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+                                >
+                                  <Eye size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleAdminDeleteTask(task.id, task.title)}
+                                  title="Delete Task"
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           /* System Settings Tab (Superadmin exclusive config board) */
           <div className="w-full flex flex-col gap-6 animate-fade-in">
@@ -1804,7 +2385,386 @@ const Admin = () => {
             </div>
           </div>
         )}
+
+        {/* Create Task Modal in Superadmin */}
+        {showAdminTaskModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+            <div className="glass-card w-full max-w-xl p-6 relative shadow-2xl max-h-[90vh] flex flex-col my-auto">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 dark:border-white/5 mb-4 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <CheckSquare size={18} />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                      Create System Task
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Assign school visits or field operations to team members
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAdminTaskModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-white/5"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAdminCreateTask} className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Task Title <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Conduct Specimen Showcase at Hindu School"
+                    value={adminTaskFormData.title}
+                    onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, title: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Description / Instructions
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Provide visit instructions, contact expectations, or specimen objectives..."
+                    value={adminTaskFormData.description}
+                    onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, description: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium resize-none"
+                  />
+                </div>
+
+                {/* Category & Priority */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      Category
+                    </label>
+                    <select
+                      value={adminTaskFormData.category}
+                      onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, category: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="SCHOOL_VISIT">School Visit</option>
+                      <option value="SPECIMEN_DISTRIBUTION">Specimen Distribution</option>
+                      <option value="TEACHER_FOLLOWUP">Teacher Follow-up</option>
+                      <option value="DEAL_CLOSING">Deal Closing</option>
+                      <option value="MARKETING_CAMPAIGN">Marketing Campaign</option>
+                      <option value="GENERAL">General Task</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      Priority
+                    </label>
+                    <select
+                      value={adminTaskFormData.priority}
+                      onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, priority: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="URGENT">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Assignee & Due Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      Assignee <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={adminTaskFormData.assignedToId}
+                      onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, assignedToId: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="">Select Team Member</option>
+                      {allUsersList.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : u.email} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      Due Date <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={adminTaskFormData.dueDate}
+                      onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, dueDate: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* West Bengal Location & School Cascade */}
+                <div className="p-4 bg-slate-50/70 dark:bg-white/2 border border-slate-200/60 dark:border-white/5 rounded-2xl flex flex-col gap-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin size={13} className="text-rose-500" />
+                    Link West Bengal School (Optional)
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Filter by District
+                      </label>
+                      <select
+                        value={adminModalDistrictId}
+                        onChange={(e) => {
+                          setAdminModalDistrictId(e.target.value);
+                          setAdminModalZoneId('');
+                          setAdminTaskFormData({ ...adminTaskFormData, schoolId: '' });
+                        }}
+                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                      >
+                        <option value="">All Districts</option>
+                        {adminDistricts.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Filter by Zone
+                      </label>
+                      <select
+                        value={adminModalZoneId}
+                        onChange={(e) => {
+                          setAdminModalZoneId(e.target.value);
+                          setAdminTaskFormData({ ...adminTaskFormData, schoolId: '' });
+                        }}
+                        disabled={!adminModalDistrictId && adminZones.length > 20}
+                        className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer disabled:opacity-50"
+                      >
+                        <option value="">All Zones</option>
+                        {adminZones
+                          .filter((z) => !adminModalDistrictId || z.districtId === adminModalDistrictId)
+                          .map((z) => (
+                            <option key={z.id} value={z.id}>{z.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Select Target School
+                    </label>
+                    <select
+                      value={adminTaskFormData.schoolId}
+                      onChange={(e) => setAdminTaskFormData({ ...adminTaskFormData, schoolId: e.target.value })}
+                      className="w-full bg-white dark:bg-dark-deep border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                    >
+                      <option value="">No specific school (General Task)</option>
+                      {adminSchools
+                        .filter((s) => {
+                          if (adminModalZoneId) return s.zoneId === adminModalZoneId;
+                          if (adminModalDistrictId) return s.zone?.districtId === adminModalDistrictId || s.zone?.district?.id === adminModalDistrictId;
+                          return true;
+                        })
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.zone?.name || 'Zone'}{s.zone?.district ? `, ${s.zone.district.name}` : ''})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-end items-center gap-3 pt-3 border-t border-slate-200/60 dark:border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminTaskModal(false)}
+                    className="px-4 py-2 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={adminTaskSubmitting}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-500/20 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {adminTaskSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                    <span>Create Task</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
+        )}
+
+        {/* Task Details & Submission Modal */}
+        {selectedTaskDetail && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+            <div className="glass-card w-full max-w-lg p-6 relative shadow-2xl space-y-4 overflow-y-auto max-h-[90vh] my-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <CheckSquare size={18} />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                      {selectedTaskDetail.title}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${TASK_PRIORITY_BADGES[selectedTaskDetail.priority] || TASK_PRIORITY_BADGES.MEDIUM}`}>
+                        {selectedTaskDetail.priority}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {TASK_CATEGORY_LABELS[selectedTaskDetail.category] || selectedTaskDetail.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedTaskDetail(null)}
+                  className="p-1.5 text-slate-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-white/5"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Status & Due Date */}
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/2 border border-slate-200/60 dark:border-white/5 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Current Status</span>
+                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">
+                    {selectedTaskDetail.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Due Date</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-200 text-sm">
+                    {selectedTaskDetail.dueDate ? formatDate(selectedTaskDetail.dueDate) : 'None'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedTaskDetail.description && (
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-1">
+                    Instructions / Notes
+                  </span>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-dark-deep p-3 rounded-xl border border-slate-200/60 dark:border-white/5 whitespace-pre-line leading-relaxed">
+                    {selectedTaskDetail.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Assignee Card */}
+              {selectedTaskDetail.assignedTo && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/2 border border-slate-200/60 dark:border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
+                      {selectedTaskDetail.assignedTo.name ? selectedTaskDetail.assignedTo.name[0] : 'U'}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {selectedTaskDetail.assignedTo.name || 'Team Member'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {selectedTaskDetail.assignedTo.email}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={getRoleBadgeClass(selectedTaskDetail.assignedTo.role)}>
+                    {selectedTaskDetail.assignedTo.role}
+                  </span>
+                </div>
+              )}
+
+              {/* School Information */}
+              {selectedTaskDetail.school && (
+                <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-200/60 dark:border-indigo-500/20 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 font-bold text-xs text-indigo-900 dark:text-indigo-300">
+                    <Building size={14} />
+                    <span>{selectedTaskDetail.school.name}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <MapPin size={12} className="text-rose-500 shrink-0" />
+                    <span>
+                      {selectedTaskDetail.school.zone?.name || 'Zone'}
+                      {selectedTaskDetail.school.zone?.district ? `, ${selectedTaskDetail.school.zone.district.name}` : ''}
+                      {' · West Bengal'}
+                    </span>
+                  </div>
+                  {selectedTaskDetail.school.contactPerson && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <User size={12} className="text-indigo-500 shrink-0" />
+                      <span>Contact: {selectedTaskDetail.school.contactPerson}</span>
+                    </div>
+                  )}
+                  {selectedTaskDetail.school.phone && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Phone size={12} className="text-emerald-500 shrink-0" />
+                      <span>Phone: {selectedTaskDetail.school.phone}</span>
+                    </div>
+                  )}
+                  {selectedTaskDetail.school.address && (
+                    <p className="text-[10px] text-slate-400 italic">
+                      {selectedTaskDetail.school.address}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* School Submission Report */}
+              {selectedTaskDetail.comments?.some((c) => c.content?.includes('[SCHOOL SUBMISSION REPORT]')) && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileCheck size={14} />
+                    Field Submission Report Recorded
+                  </span>
+                  <div className="p-3.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 whitespace-pre-line text-xs text-slate-800 dark:text-slate-200 font-mono leading-relaxed max-h-56 overflow-y-auto">
+                    {selectedTaskDetail.comments.find((c) => c.content?.includes('[SCHOOL SUBMISSION REPORT]'))?.content}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200/60 dark:border-white/5">
+                <button
+                  onClick={() => {
+                    setSelectedTaskDetail(null);
+                    navigate('/tasks');
+                  }}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Open in Task Board</span>
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  onClick={() => setSelectedTaskDetail(null)}
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

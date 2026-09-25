@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
 import KpiCard from '../components/KpiCard';
+import { FlipkartStatCardSkeleton, FlipkartTableSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   getStockSummaryAPI,
@@ -14,8 +15,6 @@ import {
 import {
   Package,
   AlertTriangle,
-  ArrowUpRight,
-  ArrowDownLeft,
   DollarSign,
   Search,
   Plus,
@@ -48,7 +47,6 @@ const StockManagement = () => {
 
   // Modal State
   const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [formData, setFormData] = useState({
     productId: '',
     type: 'INWARD',
@@ -115,19 +113,21 @@ const StockManagement = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSummary();
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeTab === 'inventory') fetchInventory();
     else if (activeTab === 'movements') fetchMovements();
     else if (activeTab === 'alerts') fetchAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, statusFilter, movementTypeFilter, search]);
 
   const openAdjustModal = (product = null, defaultType = 'INWARD') => {
     setModalError(null);
     setModalSuccess(null);
-    setSelectedProduct(product);
     setFormData({
       productId: product ? product.id : '',
       type: defaultType,
@@ -207,7 +207,9 @@ const StockManagement = () => {
           </div>
 
           {/* KPI Overview Widgets */}
-          {summary && (
+          {loading && !summary ? (
+            <FlipkartStatCardSkeleton count={4} />
+          ) : summary ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="Total Warehouse Stock"
@@ -242,7 +244,7 @@ const StockManagement = () => {
                 accentColor="cyan"
               />
             </div>
-          )}
+          ) : null}
 
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/5 pb-2 overflow-x-auto">
@@ -331,9 +333,7 @@ const StockManagement = () => {
           {activeTab === 'inventory' && (
             <div className="glass-card p-6">
               {loading ? (
-                <div className="py-12 text-center text-xs text-slate-400 font-semibold flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-emerald-500" /> Loading stock inventory...
-                </div>
+                <FlipkartTableSkeleton rows={8} cols={7} hasThumbnail={true} />
               ) : products.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
                   <Package size={36} className="mx-auto opacity-30 mb-2" />
@@ -444,9 +444,7 @@ const StockManagement = () => {
           {activeTab === 'alerts' && (
             <div className="glass-card p-6">
               {loading ? (
-                <div className="py-12 text-center text-xs text-slate-400 font-semibold flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-amber-500" /> Loading stock alerts...
-                </div>
+                <FlipkartTableSkeleton rows={4} cols={5} hasThumbnail={false} />
               ) : alerts.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
                   <CheckCircle2 size={36} className="mx-auto text-emerald-500 opacity-60 mb-2" />
@@ -514,9 +512,7 @@ const StockManagement = () => {
           {activeTab === 'movements' && (
             <div className="glass-card p-6">
               {loading ? (
-                <div className="py-12 text-center text-xs text-slate-400 font-semibold flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-cyan-500" /> Loading movement audit ledger...
-                </div>
+                <FlipkartTableSkeleton rows={8} cols={6} hasThumbnail={false} />
               ) : movements.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
                   <History size={36} className="mx-auto opacity-30 mb-2" />
@@ -601,31 +597,31 @@ const StockManagement = () => {
 
           {/* STOCK ADJUSTMENT / RESTOCK MODAL */}
           {showAdjustModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-              <div className="glass-card w-full max-w-lg p-6 space-y-4 relative shadow-2xl">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+              <div className="glass-card w-full max-w-lg p-6 relative shadow-2xl max-h-[90vh] flex flex-col my-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
                   <div className="flex items-center gap-2">
                     <Sliders size={18} className="text-emerald-500" />
                     <h2 className="text-base font-extrabold">Stock Adjustment & Restock</h2>
                   </div>
-                  <button onClick={() => setShowAdjustModal(false)} className="p-1 hover:text-rose-500">
+                  <button onClick={() => setShowAdjustModal(false)} className="p-1 hover:text-rose-500 cursor-pointer">
                     <X size={16} />
                   </button>
                 </div>
 
                 {modalError && (
-                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2 shrink-0 mt-3">
                     <XCircle size={16} /> {modalError}
                   </div>
                 )}
 
                 {modalSuccess && (
-                  <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2 shrink-0 mt-3">
                     <CheckCircle2 size={16} /> {modalSuccess}
                   </div>
                 )}
 
-                <form onSubmit={handleAdjustSubmit} className="space-y-4 text-xs">
+                <form onSubmit={handleAdjustSubmit} className="flex-1 overflow-y-auto pr-1 pt-1 space-y-4 text-xs">
                   <SearchSelect
                     label="Select Product Title"
                     required
@@ -708,18 +704,18 @@ const StockManagement = () => {
                     />
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-white/5">
+                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-white/5 shrink-0 mt-2">
                     <button
                       type="button"
                       onClick={() => setShowAdjustModal(false)}
-                      className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 font-bold rounded-xl"
+                      className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 font-bold rounded-xl cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={actionLoading}
-                      className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shadow-md inline-flex items-center gap-1"
+                      className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shadow-md inline-flex items-center gap-1 cursor-pointer"
                     >
                       {actionLoading ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Save Stock Adjustment
                     </button>

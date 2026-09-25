@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { GuideProvider } from './context/GuideContext';
@@ -51,9 +51,22 @@ const ProtectedRoute = ({ children, menuPath, action }) => {
 
   if (loading) {
     return (
-      <div style={loadingContainerStyle}>
-        <div className="skeleton" style={{ width: '80px', height: '80px', borderRadius: '50%' }} />
-        <p style={{ marginTop: '16px', color: '#94a3b8' }}>Verifying identity...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-dark-deep p-4">
+        <div className="glass-card max-w-sm w-full p-8 flex flex-col items-center justify-center text-center space-y-4 shadow-2xl border border-slate-200/60 dark:border-white/5">
+          <div className="relative w-16 h-16 rounded-full skeleton flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-slate-300/40 dark:bg-white/10" />
+          </div>
+          <div className="space-y-2 w-full flex flex-col items-center">
+            <div className="w-32 h-4 rounded-lg skeleton" />
+            <div className="w-48 h-3 rounded skeleton" />
+          </div>
+          <div className="pt-2 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Verifying identity...
+            </span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -243,14 +256,5 @@ const App = () => {
   );
 };
 
-const loadingContainerStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 'screen',
-  height: '100vh',
-  backgroundColor: '#0a0a0f',
-};
-
 export default App;
+

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import SearchSelect from '../components/SearchSelect';
 import KpiCard from '../components/KpiCard';
+import { FlipkartStatCardSkeleton, FlipkartTableSkeleton, FlipkartKanbanSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
   getTaskSummaryAPI,
@@ -14,8 +15,10 @@ import {
   addTaskCommentAPI,
   getUsersAPI,
   getSchoolsAPI,
-  getDealsAPI,
-  getContactsAPI,
+  getDistrictsAPI,
+  getZonesAPI,
+  submitTaskReportAPI,
+  initWestBengalMasterDataAPI,
 } from '../services/api';
 import {
   CheckSquare,
@@ -36,9 +39,10 @@ import {
   Building,
   DollarSign,
   Tag,
-  ChevronRight,
-  Flame,
   Send,
+  MapPin,
+  FileCheck,
+  Check,
 } from 'lucide-react';
 
 const PRIORITY_CONFIG = {
@@ -76,8 +80,12 @@ const TaskManagement = () => {
   // References for dropdowns
   const [usersList, setUsersList] = useState([]);
   const [schoolsList, setSchoolsList] = useState([]);
-  const [dealsList, setDealsList] = useState([]);
-  const [contactsList, setContactsList] = useState([]);
+  const [districtsList, setDistrictsList] = useState([]);
+  const [zonesList, setZonesList] = useState([]);
+
+  // Location Filters
+  const [districtFilter, setDistrictFilter] = useState('ALL');
+  const [zoneFilter, setZoneFilter] = useState('ALL');
 
   // Filters
   const [search, setSearch] = useState('');
@@ -90,12 +98,17 @@ const TaskManagement = () => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTaskId, setEditTaskId] = useState(null);
+  const [modalDistrictId, setModalDistrictId] = useState('');
+  const [modalZoneId, setModalZoneId] = useState('');
+  const [isBatchSchoolWise, setIsBatchSchoolWise] = useState(false);
+  const [selectedBatchSchoolIds, setSelectedBatchSchoolIds] = useState([]);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'MEDIUM',
     status: 'TODO',
-    category: 'GENERAL',
+    category: 'SCHOOL_VISIT',
     dueDate: '',
     assignedToId: '',
     schoolId: '',
@@ -103,6 +116,24 @@ const TaskManagement = () => {
     contactId: '',
   });
   const [modalError, setModalError] = useState(null);
+
+  // Submission Modal State
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [submittingTask, setSubmittingTask] = useState(null);
+  const [submissionForm, setSubmissionForm] = useState({
+    status: 'COMPLETED',
+    teacherMet: '',
+    teacherPhone: '',
+    specimenDetails: '',
+    visitOutcome: 'Specimen Handed Over',
+    notes: '',
+    followUpDate: '',
+  });
+  const [submissionLoading, setSubmissionLoading] = useState(false);
+  const [submissionError, setSubmissionError] = useState(null);
+
+  // View Submitted Report Modal
+  const [viewingReportTask, setViewingReportTask] = useState(null);
 
   // Comment Drawer State
   const [activeTaskComments, setActiveTaskComments] = useState(null);
@@ -126,6 +157,8 @@ const TaskManagement = () => {
         category: categoryFilter,
         myTasksOnly: myTasksOnly ? 'true' : 'false',
         search: search || undefined,
+        districtId: districtFilter !== 'ALL' ? districtFilter : undefined,
+        zoneId: zoneFilter !== 'ALL' ? zoneFilter : undefined,
       });
       if (res.success) setTasks(res.data || []);
     } catch (err) {
@@ -137,40 +170,82 @@ const TaskManagement = () => {
 
   const loadReferences = async () => {
     try {
-      const [uRes, schRes, dRes, cRes] = await Promise.all([
+      const [uRes, schRes, disRes, zoRes] = await Promise.all([
         getUsersAPI(),
         getSchoolsAPI(),
-        getDealsAPI(),
-        getContactsAPI(),
+        getDistrictsAPI(),
+        getZonesAPI(),
       ]);
       if (uRes.success) setUsersList(uRes.data || []);
       if (schRes.success) setSchoolsList(schRes.data || []);
-      if (dRes.success) setDealsList(dRes.data || []);
-      if (cRes.success) setContactsList(cRes.data || []);
+      if (disRes.success) setDistrictsList(disRes.data || []);
+      if (zoRes.success) setZonesList(zoRes.data || []);
+
+      // If no districts found, auto-sync West Bengal master data
+      if (!disRes.data || disRes.data.length === 0) {
+        try {
+          const initRes = await initWestBengalMasterDataAPI();
+          if (initRes.success) {
+            const [newDis, newZo, newSch] = await Promise.all([
+              getDistrictsAPI(),
+              getZonesAPI(),
+              getSchoolsAPI(),
+            ]);
+            if (newDis.success) setDistrictsList(newDis.data || []);
+            if (newZo.success) setZonesList(newZo.data || []);
+            if (newSch.success) setSchoolsList(newSch.data || []);
+          }
+        } catch (e) {
+          console.error('Auto init WB master data error:', e);
+        }
+      }
     } catch (err) {
       console.error('Error loading reference data:', err);
     }
   };
 
+  const handleSyncWestBengal = async () => {
+    setActionLoading(true);
+    try {
+      const res = await initWestBengalMasterDataAPI();
+      if (res.success) {
+        setSuccessToast('West Bengal master copy (districts, zones & schools) synchronized successfully!');
+        setTimeout(() => setSuccessToast(null), 5000);
+        await loadReferences();
+      }
+    } catch (err) {
+      console.error('Failed to sync WB master data:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSummary();
     loadReferences();
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTasks();
-  }, [priorityFilter, categoryFilter, statusFilter, myTasksOnly, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priorityFilter, categoryFilter, statusFilter, myTasksOnly, search, districtFilter, zoneFilter]);
 
   const openCreateModal = () => {
     setIsEditing(false);
     setEditTaskId(null);
     setModalError(null);
+    setModalDistrictId('');
+    setModalZoneId('');
+    setIsBatchSchoolWise(false);
+    setSelectedBatchSchoolIds([]);
     setFormData({
       title: '',
       description: '',
       priority: 'MEDIUM',
       status: 'TODO',
-      category: 'GENERAL',
+      category: 'SCHOOL_VISIT',
       dueDate: new Date().toISOString().slice(0, 10),
       assignedToId: user ? user.id : '',
       schoolId: '',
@@ -184,6 +259,15 @@ const TaskManagement = () => {
     setIsEditing(true);
     setEditTaskId(task.id);
     setModalError(null);
+    setIsBatchSchoolWise(false);
+    setSelectedBatchSchoolIds([]);
+    if (task.school?.zone) {
+      setModalDistrictId(task.school.zone.district?.id || task.school.zone.districtId || '');
+      setModalZoneId(task.school.zone.id || task.school.zoneId || '');
+    } else {
+      setModalDistrictId('');
+      setModalZoneId('');
+    }
     setFormData({
       title: task.title,
       description: task.description || '',
@@ -197,6 +281,49 @@ const TaskManagement = () => {
       contactId: task.contactId || '',
     });
     setShowTaskModal(true);
+  };
+
+  const getTaskSubmissionReport = (task) => {
+    if (!task.comments || task.comments.length === 0) return null;
+    return task.comments.find(
+      (c) => c.content && c.content.includes('[SCHOOL SUBMISSION REPORT]')
+    );
+  };
+
+  const openSubmissionModal = (task) => {
+    setSubmittingTask(task);
+    setSubmissionError(null);
+    setSubmissionForm({
+      status: 'COMPLETED',
+      teacherMet: '',
+      teacherPhone: '',
+      specimenDetails: '',
+      visitOutcome: 'Specimen Handed Over',
+      notes: '',
+      followUpDate: '',
+    });
+    setShowSubmissionModal(true);
+  };
+
+  const handleTaskReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!submittingTask) return;
+    setSubmissionLoading(true);
+    setSubmissionError(null);
+    try {
+      const res = await submitTaskReportAPI(submittingTask.id, submissionForm);
+      if (res.success) {
+        setShowSubmissionModal(false);
+        setSuccessToast(`Report successfully submitted for "${submittingTask.title}"! Status updated to ${submissionForm.status}.`);
+        setTimeout(() => setSuccessToast(null), 5000);
+        fetchSummary();
+        fetchTasks();
+      }
+    } catch (err) {
+      setSubmissionError(err.response?.data?.message || err.message || 'Failed to submit task report');
+    } finally {
+      setSubmissionLoading(false);
+    }
   };
 
   const [successToast, setSuccessToast] = useState(null);
@@ -216,16 +343,29 @@ const TaskManagement = () => {
       if (isEditing) {
         res = await updateTaskAPI(editTaskId, formData);
       } else {
-        res = await createTaskAPI(formData);
+        if (isBatchSchoolWise && selectedBatchSchoolIds.length > 0) {
+          res = await createTaskAPI({
+            ...formData,
+            schoolIds: selectedBatchSchoolIds,
+          });
+        } else {
+          res = await createTaskAPI(formData);
+        }
       }
 
       if (res.success) {
         setShowTaskModal(false);
         const assignedUser = usersList.find((u) => u.id === formData.assignedToId);
         const assigneeName = assignedUser ? assignedUser.name : 'Assignee';
-        setSuccessToast(`Task successfully created and assigned to ${assigneeName}! Pop-up notification sent.`);
+        const countMessage = isBatchSchoolWise && selectedBatchSchoolIds.length > 1
+          ? `${selectedBatchSchoolIds.length} school-wise tasks successfully created and assigned to ${assigneeName}!`
+          : `Task successfully created and assigned to ${assigneeName}! Pop-up notification sent.`;
+
+        setSuccessToast(countMessage);
         setTimeout(() => setSuccessToast(null), 5000);
 
+        setSelectedBatchSchoolIds([]);
+        setIsBatchSchoolWise(false);
         fetchSummary();
         fetchTasks();
       }
@@ -322,7 +462,9 @@ const TaskManagement = () => {
           )}
 
           {/* KPI Overview Summary Widgets */}
-          {summary && (
+          {loading && !summary ? (
+            <FlipkartStatCardSkeleton count={4} />
+          ) : summary ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="Total System Tasks"
@@ -356,7 +498,7 @@ const TaskManagement = () => {
                 accentColor="rose"
               />
             </div>
-          )}
+          ) : null}
 
           {/* View Modes & Filters Toolbar */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
@@ -429,6 +571,53 @@ const TaskManagement = () => {
                 accentColor="indigo"
               />
 
+              {viewMode === 'list' && (
+                <SearchSelect
+                  placeholder="All Status"
+                  searchPlaceholder="Filter status..."
+                  options={[
+                    { value: 'ALL', label: 'All Status' },
+                    { value: 'TODO', label: 'To Do' },
+                    { value: 'IN_PROGRESS', label: 'In Progress' },
+                    { value: 'UNDER_REVIEW', label: 'Under Review' },
+                    { value: 'COMPLETED', label: 'Completed' },
+                  ]}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  accentColor="purple"
+                />
+              )}
+
+              <SearchSelect
+                placeholder="All Districts"
+                searchPlaceholder="Filter WB district..."
+                options={[
+                  { value: 'ALL', label: 'All WB Districts' },
+                  ...districtsList.map((d) => ({ value: d.id, label: d.name })),
+                ]}
+                value={districtFilter}
+                onChange={(val) => {
+                  setDistrictFilter(val);
+                  setZoneFilter('ALL');
+                }}
+                accentColor="cyan"
+              />
+
+              <SearchSelect
+                placeholder="All Zones"
+                searchPlaceholder="Filter zone..."
+                options={[
+                  { value: 'ALL', label: 'All Zones' },
+                  ...(districtFilter !== 'ALL'
+                    ? zonesList.filter((z) => z.districtId === districtFilter || z.district?.id === districtFilter)
+                    : zonesList
+                  ).map((z) => ({ value: z.id, label: z.name })),
+                ]}
+                value={zoneFilter}
+                onChange={setZoneFilter}
+                accentColor="emerald"
+              />
+
               <button
                 onClick={() => setMyTasksOnly(!myTasksOnly)}
                 className={`px-3 py-2 text-xs font-bold rounded-xl border transition-all flex items-center gap-1 ${
@@ -439,12 +628,27 @@ const TaskManagement = () => {
               >
                 <User size={13} /> My Tasks Only
               </button>
+
+              {user?.role === 'SUPERADMIN' && (
+                <button
+                  onClick={handleSyncWestBengal}
+                  disabled={actionLoading}
+                  title="Synchronize all West Bengal Districts & Zones from master copy"
+                  className="px-2.5 py-2 bg-indigo-50 dark:bg-white/5 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-xl border border-indigo-200 dark:border-white/10 flex items-center gap-1"
+                >
+                  <RefreshCw size={12} className={actionLoading ? 'animate-spin' : ''} />
+                  <span className="hidden lg:inline">Sync WB Master Copy</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* VIEW MODE 1: KANBAN BOARD */}
           {viewMode === 'kanban' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            loading ? (
+              <FlipkartKanbanSkeleton columns={4} />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {STATUS_COLUMNS.map((col) => {
                 const colTasks = tasks.filter((t) => t.status === col.id);
                 return (
@@ -498,19 +702,60 @@ const TaskManagement = () => {
 
                             {/* Linked CRM Entities */}
                             {(t.school || t.deal || t.contact) && (
-                              <div className="pt-1 flex flex-wrap gap-1 text-[10px]">
+                              <div className="pt-1 space-y-1.5 text-[10px]">
                                 {t.school && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                                    <Building size={10} /> {t.school.name}
-                                  </span>
+                                  <div className="w-full p-2 rounded-xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+                                    <div className="flex items-center gap-1.5 text-xs font-black text-emerald-700 dark:text-emerald-400">
+                                      <Building size={12} className="shrink-0 text-emerald-600" />
+                                      <span className="truncate">{t.school.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                                      <MapPin size={10} className="text-rose-500 shrink-0" />
+                                      <span className="truncate">
+                                        {t.school.zone?.name || 'Zone'}
+                                        {t.school.zone?.district ? `, ${t.school.zone.district.name}` : ''}
+                                      </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-500/20 px-1 rounded text-[9px]">WB</span>
+                                    </div>
+                                  </div>
                                 )}
                                 {t.deal && (
-                                  <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
+                                  <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1 inline-flex">
                                     <DollarSign size={10} /> {t.deal.title}
                                   </span>
                                 )}
                               </div>
                             )}
+
+                            {/* School Task Submission Status & Actions */}
+                            {(() => {
+                              const submission = getTaskSubmissionReport(t);
+                              if (submission) {
+                                return (
+                                  <div className="pt-1.5 flex items-center justify-between border-t border-dashed border-emerald-500/20">
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black flex items-center gap-1">
+                                      <FileCheck size={11} /> School Report Submitted
+                                    </span>
+                                    <button
+                                      onClick={() => setViewingReportTask(t)}
+                                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                    >
+                                      View Report
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="pt-1">
+                                  <button
+                                    onClick={() => openSubmissionModal(t)}
+                                    className="w-full py-1.5 px-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-[10px] rounded-xl shadow-sm flex items-center justify-center gap-1 cursor-pointer transition-all"
+                                  >
+                                    <CheckSquare size={12} /> Submit School Report
+                                  </button>
+                                </div>
+                              );
+                            })()}
 
                             {/* Footer: Due date & Assigned user & Comments */}
                             <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
@@ -553,15 +798,14 @@ const TaskManagement = () => {
                 );
               })}
             </div>
+            )
           )}
 
           {/* VIEW MODE 2: LIST TABLE VIEW */}
           {viewMode === 'list' && (
             <div className="glass-card p-6">
               {loading ? (
-                <div className="py-12 text-center text-xs text-slate-400 font-semibold flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-indigo-500" /> Loading task list...
-                </div>
+                <FlipkartTableSkeleton rows={6} cols={7} hasThumbnail={false} />
               ) : tasks.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
                   <CheckSquare size={36} className="mx-auto opacity-30 mb-2" />
@@ -639,7 +883,16 @@ const TaskManagement = () => {
 
                             <td className="px-3">
                               {t.school ? (
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{t.school.name}</span>
+                                <div className="flex flex-col">
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                    <Building size={11} /> {t.school.name}
+                                  </span>
+                                  {t.school.zone && (
+                                    <span className="text-[10px] text-slate-400 font-semibold">
+                                      📍 {t.school.zone.name}{t.school.zone.district ? `, ${t.school.zone.district.name}` : ''}
+                                    </span>
+                                  )}
+                                </div>
                               ) : t.deal ? (
                                 <span className="text-purple-600 dark:text-purple-400 font-semibold">{t.deal.title}</span>
                               ) : (
@@ -647,7 +900,30 @@ const TaskManagement = () => {
                               )}
                             </td>
 
-                            <td className="px-3 text-right space-x-1">
+                            <td className="px-3 text-right space-x-1.5 whitespace-nowrap">
+                              {(() => {
+                                const submission = getTaskSubmissionReport(t);
+                                if (submission) {
+                                  return (
+                                    <button
+                                      onClick={() => setViewingReportTask(t)}
+                                      title="View Submitted Report"
+                                      className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white rounded text-[10px] font-bold inline-flex items-center gap-1 transition-all"
+                                    >
+                                      <FileCheck size={11} /> Report
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    onClick={() => openSubmissionModal(t)}
+                                    title="Submit School Activity Report"
+                                    className="px-2 py-1 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white rounded text-[10px] font-bold inline-flex items-center gap-1 transition-all"
+                                  >
+                                    <CheckSquare size={11} /> Submit
+                                  </button>
+                                );
+                              })()}
                               <button onClick={() => openEditModal(t)} className="p-1 hover:text-indigo-500">
                                 <Edit2 size={13} />
                               </button>
@@ -667,25 +943,26 @@ const TaskManagement = () => {
 
           {/* CREATE / EDIT TASK MODAL */}
           {showTaskModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-              <div className="glass-card w-full max-w-xl p-6 space-y-4 relative shadow-2xl">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+              <div className="glass-card w-full max-w-xl p-6 relative shadow-2xl max-h-[90vh] flex flex-col my-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
                   <div className="flex items-center gap-2">
                     <CheckSquare size={18} className="text-indigo-500" />
                     <h2 className="text-base font-extrabold">{isEditing ? 'Edit Task' : 'Create New CRM Task'}</h2>
                   </div>
-                  <button onClick={() => setShowTaskModal(false)} className="p-1 hover:text-rose-500">
+                  <button onClick={() => setShowTaskModal(false)} className="p-1 hover:text-rose-500 cursor-pointer">
                     <X size={16} />
                   </button>
                 </div>
 
                 {modalError && (
-                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold shrink-0 mt-3">
                     {modalError}
                   </div>
                 )}
 
-                <form onSubmit={handleTaskSubmit} className="space-y-4 text-xs">
+                <form onSubmit={handleTaskSubmit} className="flex-1 overflow-y-auto pr-1 pt-1 flex flex-col justify-between text-xs">
+                  <div className="space-y-4 pt-3 pb-4">
                   <div>
                     <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">Task Title *</label>
                     <input
@@ -753,9 +1030,10 @@ const TaskManagement = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Assignee Selection */}
+                  <div>
                     <SearchSelect
-                      label="Assign To Team Member"
+                      label="Assign To Team Member *"
                       required
                       placeholder="Select Assignee..."
                       searchPlaceholder="Search users..."
@@ -767,33 +1045,216 @@ const TaskManagement = () => {
                       onChange={(v) => setFormData({ ...formData, assignedToId: v })}
                       accentColor="purple"
                     />
-
-                    <SearchSelect
-                      label="Linked Master Data School (Optional)"
-                      placeholder="Select School..."
-                      searchPlaceholder="Search schools..."
-                      options={schoolsList.map((s) => ({
-                        value: s.id,
-                        label: `${s.name} (${s.type})`,
-                      }))}
-                      value={formData.schoolId}
-                      onChange={(v) => setFormData({ ...formData, schoolId: v })}
-                      accentColor="emerald"
-                    />
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-white/5">
+                  {/* WEST BENGAL DISTRICT & ZONE-WISE SCHOOL SELECTION */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-dark-deep/80 border border-slate-200/80 dark:border-white/5 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-200/60 dark:border-white/5">
+                      <div className="flex items-center gap-1.5 font-black text-slate-800 dark:text-slate-100 text-xs">
+                        <Building size={14} className="text-emerald-500" />
+                        <span>Link School (West Bengal District & Zone Wise)</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px] self-start sm:self-auto">
+                        Fixed: West Bengal (WB)
+                      </span>
+                    </div>
+
+                    {/* District & Zone Selectors */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <SearchSelect
+                          label="1. Select District (West Bengal)"
+                          placeholder="All Districts..."
+                          searchPlaceholder="Search 15 WB districts..."
+                          options={[
+                            { value: '', label: 'All Districts' },
+                            ...districtsList.map((d) => ({ value: d.id, label: d.name })),
+                          ]}
+                          value={modalDistrictId}
+                          onChange={(val) => {
+                            setModalDistrictId(val);
+                            setModalZoneId('');
+                            if (!isBatchSchoolWise) {
+                              setFormData({ ...formData, schoolId: '' });
+                            }
+                          }}
+                          accentColor="cyan"
+                        />
+                      </div>
+
+                      <div>
+                        <SearchSelect
+                          label="2. Select Zone"
+                          placeholder={modalDistrictId ? 'Select Zone in District...' : 'Select District first...'}
+                          searchPlaceholder="Search zones..."
+                          options={[
+                            { value: '', label: 'All Zones in District' },
+                            ...(modalDistrictId
+                              ? zonesList.filter((z) => z.districtId === modalDistrictId || z.district?.id === modalDistrictId)
+                              : zonesList
+                            ).map((z) => ({
+                              value: z.id,
+                              label: `${z.name} ${!modalDistrictId && z.district ? `(${z.district.name})` : ''}`,
+                            })),
+                          ]}
+                          value={modalZoneId}
+                          onChange={(val) => {
+                            setModalZoneId(val);
+                            if (!isBatchSchoolWise) {
+                              setFormData({ ...formData, schoolId: '' });
+                            }
+                          }}
+                          accentColor="emerald"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mode Toggle: Single School vs Batch Multi-School */}
+                    {!isEditing && (
+                      <div className="flex items-center justify-between pt-1">
+                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isBatchSchoolWise}
+                            onChange={(e) => {
+                              setIsBatchSchoolWise(e.target.checked);
+                              if (!e.target.checked) setSelectedBatchSchoolIds([]);
+                            }}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                          />
+                          <span>Batch Task Creation: Create separate task for each selected school</span>
+                        </label>
+
+                        {isBatchSchoolWise && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const available = schoolsList.filter((s) => {
+                                if (modalZoneId) return s.zoneId === modalZoneId || s.zone?.id === modalZoneId;
+                                if (modalDistrictId) return s.zone?.districtId === modalDistrictId || s.zone?.district?.id === modalDistrictId;
+                                return true;
+                              });
+                              if (selectedBatchSchoolIds.length === available.length) {
+                                setSelectedBatchSchoolIds([]);
+                              } else {
+                                setSelectedBatchSchoolIds(available.map((s) => s.id));
+                              }
+                            }}
+                            className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                          >
+                            {(() => {
+                              const available = schoolsList.filter((s) => {
+                                if (modalZoneId) return s.zoneId === modalZoneId || s.zone?.id === modalZoneId;
+                                if (modalDistrictId) return s.zone?.districtId === modalDistrictId || s.zone?.district?.id === modalDistrictId;
+                                return true;
+                              });
+                              return selectedBatchSchoolIds.length === available.length ? 'Deselect All' : 'Select All';
+                            })()}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* School Picker: Single or Multi-Select */}
+                    {!isBatchSchoolWise ? (
+                      <div>
+                        {(() => {
+                          const availableSchools = schoolsList.filter((s) => {
+                            if (modalZoneId) return s.zoneId === modalZoneId || s.zone?.id === modalZoneId;
+                            if (modalDistrictId) return s.zone?.districtId === modalDistrictId || s.zone?.district?.id === modalDistrictId;
+                            return true;
+                          });
+                          return (
+                            <SearchSelect
+                              label={`3. Select School (${availableSchools.length} available)`}
+                              placeholder="Choose School..."
+                              searchPlaceholder="Search available schools..."
+                              options={[
+                                { value: '', label: 'No School (General Task)' },
+                                ...availableSchools.map((s) => ({
+                                  value: s.id,
+                                  label: `${s.name} (${s.zone?.name || 'Zone'}${s.zone?.district ? `, ${s.zone.district.name}` : ''})`,
+                                })),
+                              ]}
+                              value={formData.schoolId}
+                              onChange={(v) => setFormData({ ...formData, schoolId: v })}
+                              accentColor="emerald"
+                            />
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex justify-between">
+                          <span>Check Schools ({selectedBatchSchoolIds.length} selected)</span>
+                        </div>
+                        {(() => {
+                          const availableSchools = schoolsList.filter((s) => {
+                            if (modalZoneId) return s.zoneId === modalZoneId || s.zone?.id === modalZoneId;
+                            if (modalDistrictId) return s.zone?.districtId === modalDistrictId || s.zone?.district?.id === modalDistrictId;
+                            return true;
+                          });
+                          if (availableSchools.length === 0) {
+                            return (
+                              <div className="p-3 text-center text-xs text-slate-400 bg-white/50 dark:bg-dark-card rounded-xl">
+                                No schools found in this zone/district.
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-white dark:bg-dark-card border border-slate-200/60 dark:border-white/5">
+                              {availableSchools.map((s) => {
+                                const isChecked = selectedBatchSchoolIds.includes(s.id);
+                                return (
+                                  <label
+                                    key={s.id}
+                                    className={`flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer transition-all ${
+                                      isChecked
+                                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold'
+                                        : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedBatchSchoolIds([...selectedBatchSchoolIds, s.id]);
+                                        } else {
+                                          setSelectedBatchSchoolIds(selectedBatchSchoolIds.filter((id) => id !== s.id));
+                                        }
+                                      }}
+                                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <div className="flex-1 truncate">
+                                      <span>{s.name}</span>
+                                      <span className="text-[10px] text-slate-400 ml-1.5">
+                                        ({s.zone?.name || 'Zone'}{s.zone?.district ? `, ${s.zone.district.name}` : ''})
+                                      </span>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-white/5 shrink-0 mt-2">
                     <button
                       type="button"
                       onClick={() => setShowTaskModal(false)}
-                      className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 font-bold rounded-xl"
+                      className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 font-bold rounded-xl cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={actionLoading}
-                      className="px-5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold rounded-xl shadow-md inline-flex items-center gap-1"
+                      className="px-5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold rounded-xl shadow-md inline-flex items-center gap-1 cursor-pointer"
                     >
                       {actionLoading ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                       {isEditing ? 'Save Changes' : 'Create Task'}
@@ -806,7 +1267,7 @@ const TaskManagement = () => {
 
           {/* TASK COMMENTS DRAWER */}
           {activeTaskComments && (
-            <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+            <div className="fixed inset-0 z-[1000] flex justify-end bg-slate-900/50 backdrop-blur-xs animate-fade-in">
               <div className="w-full max-w-md bg-white dark:bg-dark-card h-full p-6 space-y-4 shadow-2xl flex flex-col">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5">
                   <div className="flex items-center gap-2">
@@ -858,6 +1319,236 @@ const TaskManagement = () => {
                     <Send size={14} />
                   </button>
                 </form>
+              </div>
+            </div>
+          )}
+          {/* SCHOOL TASK SUBMISSION MODAL */}
+          {showSubmissionModal && submittingTask && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+              <div className="glass-card w-full max-w-lg p-6 relative shadow-2xl max-h-[90vh] flex flex-col my-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <FileCheck size={18} />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                        Submit School Activity Report
+                      </h2>
+                      <p className="text-[11px] text-slate-400">
+                        Task: {submittingTask.title}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowSubmissionModal(false)} className="p-1 hover:text-rose-500 cursor-pointer">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-1 pt-3 space-y-4 text-xs">
+
+                {/* Linked School Information Banner */}
+                {submittingTask.school && (
+                  <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-extrabold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                        <Building size={13} /> {submittingTask.school.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                        <MapPin size={11} className="text-rose-500" />
+                        <span>{submittingTask.school.zone?.name || 'Zone'}{submittingTask.school.zone?.district ? `, ${submittingTask.school.zone.district.name}` : ''}</span>
+                        <span className="font-bold text-indigo-500">· West Bengal</span>
+                      </p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-white">
+                      {submittingTask.school.type || 'PRIVATE'}
+                    </span>
+                  </div>
+                )}
+
+                {submissionError && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                    {submissionError}
+                  </div>
+                )}
+
+                <form onSubmit={handleTaskReportSubmit} className="space-y-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                        Task Status *
+                      </label>
+                      <select
+                        value={submissionForm.status}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, status: e.target.value })}
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl font-bold focus:outline-none"
+                      >
+                        <option value="COMPLETED">COMPLETED (Closed)</option>
+                        <option value="UNDER_REVIEW">UNDER REVIEW</option>
+                        <option value="IN_PROGRESS">IN PROGRESS (Follow-up needed)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                        Visit Outcome *
+                      </label>
+                      <select
+                        value={submissionForm.visitOutcome}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, visitOutcome: e.target.value })}
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl font-bold focus:outline-none"
+                      >
+                        <option value="Specimen Handed Over">Specimen Handed Over</option>
+                        <option value="Syllabus Prescription Agreed">Syllabus Prescription Agreed</option>
+                        <option value="Order Discussed / Placed">Order Discussed / Placed</option>
+                        <option value="Follow-up Meeting Scheduled">Follow-up Meeting Scheduled</option>
+                        <option value="School Closed / Revisit Required">School Closed / Revisit Required</option>
+                        <option value="General Visit Done">General Visit Done</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                        Teacher / Contact Person Met
+                      </label>
+                      <input
+                        type="text"
+                        value={submissionForm.teacherMet}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, teacherMet: e.target.value })}
+                        placeholder="e.g. Mr. A. Roy (HOD Science)"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                        Teacher Phone / Contact
+                      </label>
+                      <input
+                        type="tel"
+                        value={submissionForm.teacherPhone}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, teacherPhone: e.target.value })}
+                        placeholder="e.g. 9830012345"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                      Specimen Books Distributed / Details
+                    </label>
+                    <input
+                      type="text"
+                      value={submissionForm.specimenDetails}
+                      onChange={(e) => setSubmissionForm({ ...submissionForm, specimenDetails: e.target.value })}
+                      placeholder="e.g. Class 10 Physical Science Question Bank (2 copies), Math (2 copies)"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                      Notes & Teacher Feedback
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={submissionForm.notes}
+                      onChange={(e) => setSubmissionForm({ ...submissionForm, notes: e.target.value })}
+                      placeholder="Add observations, teacher reactions, competitor books mentioned, or future requirements..."
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                      Next Follow-up Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={submissionForm.followUpDate}
+                      onChange={(e) => setSubmissionForm({ ...submissionForm, followUpDate: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 dark:bg-dark-deep border rounded-xl font-bold focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-white/5 shrink-0 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSubmissionModal(false)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-bold rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submissionLoading}
+                      className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold rounded-xl shadow-md inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {submissionLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                      Submit Report
+                    </button>
+                  </div>
+                </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW SUBMISSION REPORT MODAL */}
+          {viewingReportTask && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+              <div className="glass-card w-full max-w-lg p-6 relative shadow-2xl max-h-[90vh] flex flex-col my-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-white/5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <FileCheck size={18} />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                        School Submission Report
+                      </h2>
+                      <p className="text-[11px] text-slate-400">
+                        {viewingReportTask.title}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setViewingReportTask(null)} className="p-1 hover:text-rose-500 cursor-pointer">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-1 pt-3 space-y-4">
+                  {viewingReportTask.school && (
+                    <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex items-center gap-2 font-extrabold text-xs text-emerald-800 dark:text-emerald-300">
+                        <Building size={14} /> {viewingReportTask.school.name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                        <MapPin size={11} className="text-rose-500" />
+                        <span>{viewingReportTask.school.zone?.name || 'Zone'}{viewingReportTask.school.zone?.district ? `, ${viewingReportTask.school.zone.district.name}` : ''} · West Bengal</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-dark-deep border border-slate-200/60 dark:border-white/5 whitespace-pre-line text-xs font-medium text-slate-700 dark:text-slate-200 leading-relaxed">
+                    {getTaskSubmissionReport(viewingReportTask)?.content || 'No submission report text recorded.'}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-slate-200/60 dark:border-white/5 shrink-0 mt-2">
+                  <span className="text-[10px] text-slate-400">
+                    Status: <span className="font-extrabold text-emerald-600">{viewingReportTask.status}</span>
+                  </span>
+                  <button
+                    onClick={() => setViewingReportTask(null)}
+                    className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}

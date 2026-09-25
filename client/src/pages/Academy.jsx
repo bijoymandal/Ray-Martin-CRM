@@ -918,7 +918,7 @@ const Academy = () => {
           </div>
 
           {confirmModal.isOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in overflow-y-auto">
               <div className="glass-card max-w-md w-full p-6 border border-slate-200/60 dark:border-white/5 shadow-2xl animate-scale-up">
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 font-bold">
                   <HelpCircle className="text-indigo-500 shrink-0" size={20} />

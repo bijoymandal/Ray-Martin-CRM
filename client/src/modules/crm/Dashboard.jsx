@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
+import { FlipkartStatCardSkeleton } from '../../components/Skeleton';
 import { getContactsAPI, getDealsAPI } from '../services/api';
 import { Users, Briefcase, DollarSign, Percent, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -124,17 +125,23 @@ const Dashboard = () => {
           )}
 
           {loading ? (
-            // Skeleton Layout
+            // Flipkart-Style Skeleton Layout
             <div className="flex flex-col gap-8">
-              <div className={`grid grid-cols-1 sm:grid-cols-2 ${canReadContacts ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
-                {canReadContacts && <div className="skeleton h-[120px] rounded-2xl" />}
-                <div className="skeleton h-[120px] rounded-2xl" />
-                <div className="skeleton h-[120px] rounded-2xl" />
-                <div className="skeleton h-[120px] rounded-2xl" />
-              </div>
+              <FlipkartStatCardSkeleton
+                count={canReadContacts ? 4 : 3}
+                colsClass={`grid-cols-1 sm:grid-cols-2 ${canReadContacts ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}
+              />
               <div className={`grid grid-cols-1 ${canReadContacts ? 'lg:grid-cols-2' : ''} gap-6`}>
-                {canReadContacts && <div className="skeleton h-[350px] rounded-2xl" />}
-                <div className="skeleton h-[350px] rounded-2xl" />
+                {canReadContacts && (
+                  <div className="glass-card p-6 space-y-4">
+                    <div className="w-36 h-4 rounded skeleton" />
+                    <div className="w-full h-64 rounded-xl skeleton" />
+                  </div>
+                )}
+                <div className="glass-card p-6 space-y-4">
+                  <div className="w-36 h-4 rounded skeleton" />
+                  <div className="w-full h-64 rounded-xl skeleton" />
+                </div>
               </div>
             </div>
           ) : (
