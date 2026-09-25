@@ -1,0 +1,1 @@
+server/src/scripts/transfer_teachers.sh

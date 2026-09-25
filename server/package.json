@@ -8,8 +8,11 @@
     "start": "node src/index.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "transfer:teachers": "node src/scripts/transfer_teachers.js",
+    "transfer:teachers:stats": "node src/scripts/transfer_teachers.js --stats",
+    "transfer:teachers:school": "node src/scripts/transfer_teachers.js --category=School",
+    "transfer:teachers:private": "node src/scripts/transfer_teachers.js --category=\"Private Tutor\""
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
