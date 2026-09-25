@@ -223,8 +223,45 @@ async function seedWestBengalMasterData(prisma) {
     }
   }
 
+  // 5. Seed sample teachers for benchmark schools if none exist
+  let teachersCreated = 0;
+  try {
+    const existingTeacherCount = await prisma.teacher.count();
+    if (existingTeacherCount === 0) {
+      const schools = await prisma.school.findMany({ take: 10 });
+      const sampleTeachers = [
+        { name: 'Dr. Subhash Mukherjee', subject: 'Physics', designation: 'Senior Faculty' },
+        { name: 'Ananya Banerjee', subject: 'Mathematics', designation: 'Head of Dept' },
+        { name: 'Debashis Roy', subject: 'Chemistry', designation: 'Teacher' },
+        { name: 'Mousumi Sen', subject: 'Biology', designation: 'Assistant Teacher' },
+        { name: 'Prasenjit Chatterjee', subject: 'English', designation: 'Senior Faculty' },
+        { name: 'Kakali Das', subject: 'Bengali', designation: 'Assistant Teacher' },
+        { name: 'Amitav Ghosh', subject: 'History', designation: 'Teacher' },
+        { name: 'Soma Bhattacharya', subject: 'Geography', designation: 'Head of Dept' },
+      ];
+      for (let i = 0; i < schools.length; i++) {
+        const sch = schools[i];
+        const t = sampleTeachers[i % sampleTeachers.length];
+        const phone = '+919830' + String(100000 + i);
+        await prisma.teacher.create({
+          data: {
+            name: t.name,
+            phone,
+            email: `teacher${i + 1}@school.org`,
+            subject: t.subject,
+            designation: t.designation,
+            schoolId: sch.id,
+          },
+        });
+        teachersCreated++;
+      }
+    }
+  } catch (tErr) {
+    console.warn('[WB-MasterData] Notice: Teacher seeding skipped:', tErr.message);
+  }
+
   console.log(
-    `[WB-MasterData] Completed: ${districtsCreated} new districts, ${zonesCreated} new zones, ${schoolsCreated} new schools.`
+    `[WB-MasterData] Completed: ${districtsCreated} new districts, ${zonesCreated} new zones, ${schoolsCreated} new schools, ${teachersCreated} new teachers.`
   );
 
   return {
@@ -233,6 +270,7 @@ async function seedWestBengalMasterData(prisma) {
     districtsCreated,
     zonesCreated,
     schoolsCreated,
+    teachersCreated,
   };
 }
 
