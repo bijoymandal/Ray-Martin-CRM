@@ -20,6 +20,7 @@ A modern, full-stack Customer Relationship Management (CRM) and publishing workf
   - [4. Direct Docker Compose Bash Commands](#4-direct-docker-compose-bash-commands)
   - [5. Container Shell Access](#5-container-shell-access)
   - [6. Managing Dependencies Inside Docker](#6-managing-dependencies-inside-docker)
+  - [7. Teacher Category-Wise SQL to NoSQL Transfer](#7-teacher-category-wise-sql-to-nosql-transfer)
 - [Local Development (Without Docker)](#local-development-without-docker)
   - [Backend Setup](#backend-setup)
   - [Frontend Setup](#frontend-setup)
@@ -336,6 +337,74 @@ npm --prefix client install
 
 # In server
 npm --prefix server install
+```
+
+---
+
+### 7. Teacher Category-Wise SQL to NoSQL Transfer
+
+A dedicated, high-speed transfer pipeline to extract, categorize, filter, and import large-scale teacher master data from relational SQL dumps into MongoDB.
+
+#### Available Scripts:
+- **`./transfer_teachers.sh`**: Root bash runner with an interactive menu and CLI flags.
+- **`server/src/scripts/transfer_teachers_sql_to_mongo.py`**: High-performance streaming parser and containerized `mongoimport` engine.
+- **`server/src/scripts/transfer_teachers.js`**: Node.js & Prisma batch pipeline.
+- **`server/src/scripts/README_TEACHER_TRANSFER.md`**: Detailed technical documentation.
+
+#### A. Interactive Menu (Recommended)
+Run without arguments to launch the interactive selector:
+```bash
+./transfer_teachers.sh
+```
+
+#### B. Quick Statistics & Validation Report (No DB changes)
+Inspect category counts (School vs Private Tutors), class distributions (Class 5–12), and top districts:
+```bash
+./transfer_teachers.sh --stats
+```
+
+#### C. Transfer by Category
+```bash
+# Transfer ALL teachers (both School Teachers and Private Tutors)
+./transfer_teachers.sh --category all
+
+# Transfer School Teachers only
+./transfer_teachers.sh --category school
+
+# Transfer Private Tutors / Teachers only
+./transfer_teachers.sh --category private
+```
+
+#### D. Transfer Class-Wise (Classes 5 to 12)
+```bash
+# Transfer School Teachers teaching Class 10
+./transfer_teachers.sh --category school --class 10
+
+# Transfer Private Tutors teaching Class 12
+./transfer_teachers.sh --category private --class 12
+```
+
+#### E. Filter by District
+```bash
+./transfer_teachers.sh --category school --district KOLKATA
+```
+
+#### F. Export Category-Separated Files
+Generates separate NDJSON files per category (`/tmp/teachers_school.ndjson` and `/tmp/teachers_private_tutor.ndjson`):
+```bash
+./transfer_teachers.sh --split
+```
+
+#### G. Run Inside Docker / NPM
+```bash
+# View statistics report
+docker compose exec crm-server npm run transfer:teachers:stats
+
+# Transfer School Teachers
+docker compose exec crm-server npm run transfer:teachers:school
+
+# Transfer Private Tutors
+docker compose exec crm-server npm run transfer:teachers:private
 ```
 
 ---
